@@ -1,0 +1,26 @@
+<html>
+<head>
+     <title>Open Layers 4 Omero Investigation</title>
+
+	<!-- jQuery -->
+	{% include "webgateway/base/includes/script_src_jquery.html" %}
+
+	 <script type="text/javascript" src="{% static 'openlayers4omero/js/app.js' %}"></script>
+	 <link rel="stylesheet" type="text/css" href="{% static 'openlayers4omero/css/app.css' %}" />
+	 
+	 <script type="text/javascript" src="{% static 'openlayers4omero/js/ol-debug.js' %}"></script>
+	 <link rel="stylesheet" type="text/css" href="{% static 'openlayers4omero/css/ol.css' %}" />
+	 
+</head>
+<body>
+     <div id="map" class="map"></div>
+	 <script type="text/javascript">
+	//<![CDATA[
+	   $(document).ready(function() {
+		   app.init();
+	   });
+	//]]>
+	</script> 
+	
+</body>
+</html>
