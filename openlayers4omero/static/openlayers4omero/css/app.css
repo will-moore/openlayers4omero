@@ -1,0 +1,27 @@
+.header {
+	float: left;
+}
+
+.right {
+	float: right;
+}
+
+#ome_session_id {
+	padding-left: 10px;
+	float: left;
+}
+
+#ome_error_log {
+	font-weight: bold;
+	padding-left: 10px;
+	float: right;	
+}
+
+fieldset {
+	border: none;
+}
+
+#viewport {
+	width: 80%;
+	height: 80%;
+}

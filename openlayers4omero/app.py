@@ -1,0 +1,60 @@
+from omero.gateway import BlitzGateway
+
+class App:
+    _connection = None
+    _request = None
+    
+    def __init__(self, request = None):
+        if request is not None and request.session is not None:
+            self._request = request
+    
+    def connect(self):
+        try:
+            if self._connection is None:
+                self._connection = BlitzGateway('root', 'admin', host='localhost', port=4064)
+            
+            if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is not None:
+                if self._connection is not None and not self._connection.connect(sUuid=self._request.session['sessionId']):
+                    if not self._connection.isConnected() and not self._connection.connect():
+                        return False
+            else:
+                if self._connection is not None and not self._connection.connect():
+                    return False  
+        except:
+            self._connection = None
+            return False
+        
+        if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is None:
+            self._request.session['sessionId'] = self._connection._getSessionId()
+
+        return True
+    
+    def isConnected(self):
+        if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is not None:
+            if self.connect(): return True
+        return False
+    
+    def disconnect(self):
+        if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is not None:
+            if self.connect():
+                self._connection._closeSession()
+        
+        self._connection = None
+        self._request.session['sessionId'] = None
+    
+    def listDatasets(self):
+        if self._connection is None or not self._connection.isConnected():
+            if not self.connect(): return { "error" : "Not Connected"}
+        
+        datasets = self._connection.getObjects('Dataset')
+        ret = []
+        for dataset in datasets:
+            tmp_images = []
+            for image in dataset.listChildren():
+                tmp_images.append({image.getName() : { "id" : image.getId()}})
+            if tmp_images:
+                ret.append({dataset.getName() : {"id" : dataset.getId(), "images:" : tmp_images }})
+        if not ret:        
+            return {'datasets' : []}
+        
+        return {"datasets": ret}
