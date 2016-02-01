@@ -51,10 +51,28 @@ class App:
         for dataset in datasets:
             tmp_images = []
             for image in dataset.listChildren():
-                tmp_images.append({image.getName() : { "id" : image.getId()}})
+                tmp_images.append(
+                                  { "name" : image.getName(), "id" : image.getId()
+                                   ,"sizeX" : image.getSizeX(), "sizeY" : image.getSizeY()
+                                   ,"sizeZ" : image.getSizeZ(), "sizeT" : image.getSizeT()
+                                   ,"sizeC" : image.getSizeC(), "zoomLevelScaling" : image.getZoomLevelScaling()
+                                   ,"isGreyScale" : image.isGreyscaleRenderingModel(), "roiCount" : image.getROICount()
+                                   })
             if tmp_images:
-                ret.append({dataset.getName() : {"id" : dataset.getId(), "images:" : tmp_images }})
-        if not ret:        
+                ret.append({"name" : dataset.getName(), "id" : dataset.getId(), "images" : tmp_images })
+                
+        if not ret:
             return {'datasets' : []}
         
         return {"datasets": ret}
+    
+    def getImage(self, imageid):
+        if self._connection is None or not self._connection.isConnected():
+            if not self.connect(): return None
+
+        try:
+            img = self._connection.getObject("Image", imageid)
+            return img.getThumbnail()
+        except Exception as e:
+            print e
+            return None

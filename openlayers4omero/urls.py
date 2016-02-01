@@ -10,6 +10,6 @@ urlpatterns = patterns('django.views.generic.simple',
      url( r'^connect$', views.connect, name='openlayers4omero_connect' ),
      url( r'^clean$', views.clean, name='openlayers4omero_clean' ),
      url( r'^datasets$', views.list_datasets, name='openlayers4omero_datasets' ),
-
+     url( r'^image/(?P<imageid>[0-9]+)?$', views.image, name='openlayers4omero_image' ),
  )
 

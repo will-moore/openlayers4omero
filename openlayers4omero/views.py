@@ -26,4 +26,15 @@ def clean(request):
 def list_datasets(request):
     return JsonResponse(App(request).listDatasets(), safe=False)
 
-        
+def image(request, imageid):
+    if imageid is None:
+        return JsonResponse({ "error" : "no image id supplied"})
+    img_data = App(request).getImage(imageid)
+    
+    if img_data is None:
+        return JsonResponse({ "error" : "not connected"})
+    
+    rsp = HttpResponse(img_data, content_type='image/jpeg')
+    rsp['Content-Length'] = len(img_data)
+    
+    return rsp

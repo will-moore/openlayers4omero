@@ -15,18 +15,24 @@
 	 
 </head>
 <body>
-	 <div class='header'>
-	 	<form action="#">
+	 <div id="header">
+	 	<form id="ome_connect_form">
 	 		<fieldset>
 	 			<input id="ome_connect" type="submit" value="Connect"/>
 	 			<div class="right">
-	 				<div id="ome_session_id"></div>
-	 				<div id="ome_error_log"></div>
+	 				<div id="ome_session_id" class="left"></div>
+	 				<div id="ome_error_log" class="right"></div>
 	 			</div>
 	 		</fieldset></form>
 	 	
 	 </div>
-     <div id="viewport" class="map"></div>
+	 <div id="main">
+	 	<div class="nav left">
+     		<img id="ome_thumbnail"></img>
+     		<select id="ome_images" size="10"></select>
+     	</div>
+     	<div id="viewport" class="right map"></div>
+     </div>
 	 <script type="text/javascript">
 	//<![CDATA[
 	   $(document).ready(function() {

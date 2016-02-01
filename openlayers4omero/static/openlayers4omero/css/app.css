@@ -1,4 +1,8 @@
-.header {
+html, body {
+	height: 100%;
+	width: 100%;
+}
+.left {
 	float: left;
 }
 
@@ -6,15 +10,44 @@
 	float: right;
 }
 
+#header {
+	height: 5%;
+	width: 100%	
+}
+
+#main {
+	height: 92%;
+	width: 100%;
+}
+
+#main .nav {
+	width: 15%;
+	height: 100%;
+}
+
 #ome_session_id {
 	padding-left: 10px;
-	float: left;
+}
+
+#ome_images {
+	width: 100%;
+	height: 90%;
+	max-width: 100%;
+	max-height:  90%;
+	display: none;
+}
+
+#ome_thumbnail {
+	width: 100%;
+	max-width: 100%;
+	height: 10%;
+	max-height: 10%;
+	display: none;
 }
 
 #ome_error_log {
-	font-weight: bold;
+	font-style: italic;
 	padding-left: 10px;
-	float: right;	
 }
 
 fieldset {
@@ -22,6 +55,6 @@ fieldset {
 }
 
 #viewport {
-	width: 80%;
-	height: 80%;
+	width: 85%;
+	height: 100%;
 }
