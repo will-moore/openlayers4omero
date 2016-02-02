@@ -99,7 +99,7 @@ var app = function() {
 		},
 		workWithImage : function(event) {
 			var selected = $("#ome_images option:selected").val();
-			$('#ome_thumbnail').attr("src", "image/" + selected)
+			$('#ome_thumbnail').attr("src", "thumbnail/" + selected)
 		},
 		registerListeners : function() {
 			$('#ome_connect_form').submit(

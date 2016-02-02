@@ -66,13 +66,44 @@ class App:
         
         return {"datasets": ret}
     
-    def getImage(self, imageid):
+    def getImage0(self, imageid):
         if self._connection is None or not self._connection.isConnected():
             if not self.connect(): return None
-
+            
         try:
             img = self._connection.getObject("Image", imageid)
+            return img
+        except Exception as e:
+            print e
+            return None
+
+    def getThumbnail(self, imageid):
+        img = self.getImage0(imageid)
+        if img is None:
+            return None
+        
+        try:
             return img.getThumbnail()
+        except Exception as e:
+            print e
+            return None
+
+    def getImage(self, imageid, z=0, t=0, tile=None, l=None):
+        if tile:
+            print tile['x']
+            print tile['y']
+            print tile['w']
+            print tile['h']
+        print l
+        
+        img = self.getImage0(imageid)
+        if img is None:
+            return None
+        try:
+            if tile is None and l is None: 
+                return img.renderJpeg(z, t)
+            
+            img.renderJpegRegion(z, t, tile['x'], tile['y'], tile['w'],tile['h'], level=l)
         except Exception as e:
             print e
             return None
