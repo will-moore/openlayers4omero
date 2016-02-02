@@ -38,9 +38,6 @@ def thumbnail(request, imageid):
 def image(request, imageid, z=0, t=0, x=None, y=None, w=None, h=None, l=None):
     if imageid is None:
         return JsonResponse({ "error" : "no image id supplied"})
-
-    print x
-    print y
     
     tile = None
     if x and y and w and h:

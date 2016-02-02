@@ -89,21 +89,19 @@ class App:
             return None
 
     def getImage(self, imageid, z=0, t=0, tile=None, l=None):
-        if tile:
-            print tile['x']
-            print tile['y']
-            print tile['w']
-            print tile['h']
-        print l
-        
         img = self.getImage0(imageid)
         if img is None:
             return None
+        
+        if l is not None:
+            l = float(l)
+
+        #TODO: check if pyramid and if resolution supported
+                
         try:
             if tile is None and l is None: 
                 return img.renderJpeg(z, t)
-            
-            img.renderJpegRegion(z, t, tile['x'], tile['y'], tile['w'],tile['h'], level=l)
+            return img.renderJpegRegion(z, t, tile['x'], tile['y'], tile['w'],tile['h'], l)
         except Exception as e:
             print e
             return None
