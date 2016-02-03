@@ -119998,8 +119998,10 @@ ol.source.Zoomify = function(opt_options) {
           tileCoordY * tierSizeInTiles[tileCoordZ][0] +
           tileCountUpToTier[tileCoordZ];
       var tileGroup = (tileIndex / ol.DEFAULT_TILE_SIZE) | 0;
-      return url + 'TileGroup' + tileGroup + '/' +
-          tileCoordZ + '-' + tileCoordX + '-' + tileCoordY + '.jpg';
+      //TODO: adjust
+      //return url + 'TileGroup' + tileGroup + '/' +
+      //    tileCoordZ + '-' + tileCoordX + '-' + tileCoordY + '.jpg';
+      return url + '/' + tileCoordX + '/' + tileCoordY + '/' + ol.DEFAULT_TILE_SIZE + '/' + ol.DEFAULT_TILE_SIZE; 
     }
   }
 

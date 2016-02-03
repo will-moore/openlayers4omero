@@ -1,6 +1,7 @@
 var app = function() {
 	return {
 		images : {},
+		viewport : null,
 		init : function() {
 			app.registerListeners();
 		},
@@ -81,7 +82,8 @@ var app = function() {
 						count++;
 					}
 			$('#ome_images').attr("size", count);
-			$('#ome_images').on("change", app.workWithImage);
+			$('#ome_images').on("change", app.updateThumbnail);
+			$('#ome_images').on("dblclick", app.workWithImage);
 			$('#ome_images').val(selected).change();
 			$('#ome_images').show();
 			$('#ome_thumbnail').show();
@@ -96,10 +98,63 @@ var app = function() {
 			$('#ome_thumbnail').attr("src", "");
 			$('#ome_thumbnail').hide();
 			$('#ome_images').hide();
+			if (app.viewport != null) {
+				app.viewport.getLayers().clear();
+				app.viewport = null;
+				$('#ome_viewport').html("");
+			} 
+			
+		},
+		updateThumbnail : function(event) {
+			var selected = $("#ome_images option:selected").val();
+			$('#ome_thumbnail').attr("src", "thumbnail/" + selected)
 		},
 		workWithImage : function(event) {
 			var selected = $("#ome_images option:selected").val();
-			$('#ome_thumbnail').attr("src", "thumbnail/" + selected)
+			
+			if (typeof(app.images[selected]) == 'undefined' || app.images[selected] == null)
+				alert('dataset' + selected + 'not found')
+			
+			var selDs = app.images[selected];
+			var zoom = -1;
+			if (selDs.zoomLevelScaling) // for now use fixed (last) zoom level
+				for (i in selDs.zoomLevelScaling) zoom++;
+				
+				var width = selDs.sizeX;
+				var height = selDs.sizeY;
+				
+				var imgCenter = [width / 2, -height / 2];
+
+				var proj = new ol.proj.Projection({
+					code: 'ZOOMIFY',
+					units: 'pixels',
+					extent: [0, 0, width, height]
+				});
+
+				var source = new ol.source.Zoomify({
+					url: 'image/' + selDs.id + '/0/0',
+					size: [width, height],
+					crossOrigin: 'anonymous'
+				});
+				
+				var view = new ol.View({
+					projection: proj,
+					center: imgCenter,
+					zoom: source.tileGrid.maxZoom,
+					extent: [0, -height, width, 0]
+				})
+				
+				if (app.viewport == null) 
+					app.viewport = new ol.Map({
+						layers: [new ol.layer.Tile({source: source})],
+					    target: 'ome_viewport',
+					    view: view
+					});
+				else {
+					app.viewport.getLayers().clear();
+					app.viewport.setView(view);
+					app.viewport.addLayer(new ol.layer.Tile({source: source}));
+				}
 		},
 		registerListeners : function() {
 			$('#ome_connect_form').submit(

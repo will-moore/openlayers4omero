@@ -1,4 +1,6 @@
 from omero.gateway import BlitzGateway
+from __builtin__ import False
+from django.db.models.lookups import Second
 
 class App:
     _connection = None
@@ -56,7 +58,8 @@ class App:
                                    ,"sizeX" : image.getSizeX(), "sizeY" : image.getSizeY()
                                    ,"sizeZ" : image.getSizeZ(), "sizeT" : image.getSizeT()
                                    ,"sizeC" : image.getSizeC(), "zoomLevelScaling" : image.getZoomLevelScaling()
-                                   ,"isGreyScale" : image.isGreyscaleRenderingModel(), "roiCount" : image.getROICount()
+                                   ,"isGreyScale" : image.isGreyscaleRenderingModel(),
+                                    "roiCount" : image.getROICount(), "requiresPixelsPyramid" : image.requiresPixelsPyramid()
                                    })
             if tmp_images:
                 ret.append({"name" : dataset.getName(), "id" : dataset.getId(), "images" : tmp_images })
@@ -77,6 +80,14 @@ class App:
             print e
             return None
 
+    def equals(self, one_float, second_float, tolerance = 0.00000001):
+        if type(one_float) is not float or type(second_float) is not float:
+            return False
+        diff = abs(one_float-second_float)
+        if diff > tolerance:
+            return False
+        return True
+
     def getThumbnail(self, imageid):
         img = self.getImage0(imageid)
         if img is None:
@@ -93,15 +104,29 @@ class App:
         if img is None:
             return None
         
-        if l is not None:
-            l = float(l)
-
-        #TODO: check if pyramid and if resolution supported
-                
         try:
-            if tile is None and l is None: 
+            if tile is None: 
                 return img.renderJpeg(z, t)
-            return img.renderJpegRegion(z, t, tile['x'], tile['y'], tile['w'],tile['h'], l)
+
+            res = img.getZoomLevelScaling()
+            if res is None and l is not None:
+                print 'no resolution levels available'
+                return None
+            
+            if res is not None:
+                levels = len(res) - 1
+                if l is not None:
+                    if levels > 0:
+                        l = int(l)
+                        if l < 0 or l > levels:
+                            print 'resolution level out of range'
+                    l=levels-l
+            else: l = None
+
+            offX = int(tile['x']) * int(tile['w'])
+            offY = int(tile['y']) * int(tile['h'])
+   
+            return img.renderJpegRegion(z, t, offX, offY, tile['w'],tile['h'], l);
         except Exception as e:
             print e
             return None
