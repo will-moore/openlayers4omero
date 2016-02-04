@@ -44,6 +44,18 @@ class App:
         self._connection = None
         self._request.session['sessionId'] = None
     
+    def convertDictToArray(self, dic):
+        if dic is None or type(dic) is not dict:
+            return None
+        ret = None
+        try:
+            return map(lambda x: 1 / x, sorted(dic.values()))
+        except Exception as ex:
+            print ex
+            ret = None
+ 
+        return ret
+    
     def listDatasets(self):
         if self._connection is None or not self._connection.isConnected():
             if not self.connect(): return { "error" : "Not Connected"}
@@ -57,7 +69,8 @@ class App:
                                   { "name" : image.getName(), "id" : image.getId()
                                    ,"sizeX" : image.getSizeX(), "sizeY" : image.getSizeY()
                                    ,"sizeZ" : image.getSizeZ(), "sizeT" : image.getSizeT()
-                                   ,"sizeC" : image.getSizeC(), "zoomLevelScaling" : image.getZoomLevelScaling()
+                                   ,"sizeC" : image.getSizeC()
+                                   ,"zoomLevelScaling" : self.convertDictToArray(image.getZoomLevelScaling())
                                    ,"isGreyScale" : image.isGreyscaleRenderingModel(),
                                     "roiCount" : image.getROICount(), "requiresPixelsPyramid" : image.requiresPixelsPyramid()
                                    })
@@ -109,11 +122,10 @@ class App:
                 return img.renderJpeg(z, t)
 
             res = img.getZoomLevelScaling()
-            if res is None and l is not None:
-                print 'no resolution levels available'
-                return None
             
-            if res is not None:
+            if res is None:
+                l = None
+            else:
                 levels = len(res) - 1
                 if l is not None:
                     if levels > 0:
@@ -121,7 +133,6 @@ class App:
                         if l < 0 or l > levels:
                             print 'resolution level out of range'
                     l=levels-l
-            else: l = None
 
             offX = int(tile['x']) * int(tile['w'])
             offY = int(tile['y']) * int(tile['h'])

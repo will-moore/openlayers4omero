@@ -116,9 +116,7 @@ var app = function() {
 				alert('dataset' + selected + 'not found')
 			
 			var selDs = app.images[selected];
-			var zoom = -1;
-			if (selDs.zoomLevelScaling) // for now use fixed (last) zoom level
-				for (i in selDs.zoomLevelScaling) zoom++;
+			var zoom = selDs.zoomLevelScaling ? selDs.zoomLevelScaling.length : -1;
 				
 				var width = selDs.sizeX;
 				var height = selDs.sizeY;
@@ -126,27 +124,34 @@ var app = function() {
 				var imgCenter = [width / 2, -height / 2];
 
 				var proj = new ol.proj.Projection({
-					code: 'ZOOMIFY',
+					code: 'OMERO',
 					units: 'pixels',
 					extent: [0, 0, width, height]
 				});
 
-				var source = new ol.source.Zoomify({
+				var source = new ol.source.Omero({
 					url: 'image/' + selDs.id + '/0/0',
 					size: [width, height],
-					crossOrigin: 'anonymous'
+					crossOrigin: 'anonymous',
+					resolutions: selDs.zoomLevelScaling ? selDs.zoomLevelScaling : [1]
 				});
-				
-				var view = new ol.View({
-					projection: proj,
-					center: imgCenter,
-					zoom: source.tileGrid.maxZoom,
-					extent: [0, -height, width, 0]
-				})
+				var opt = {
+						projection: proj,
+						center: imgCenter,
+						zoom: zoom > 0 ? zoom : 2,
+						extent: [0, -height, width, 0]
+				};
+				var view = new ol.View(opt);
 				
 				if (app.viewport == null) 
 					app.viewport = new ol.Map({
-						layers: [new ol.layer.Tile({source: source})],
+						controls: ol.control.defaults().extend([
+						      new ol.control.OverviewMap()
+						]),
+						interactions: ol.interaction.defaults().extend([
+						     new ol.interaction.DragRotateAndZoom()
+						]),
+						layers: [new ol.layer.Tile({source: source, preload: Infinity})],
 					    target: 'ome_viewport',
 					    view: view
 					});
