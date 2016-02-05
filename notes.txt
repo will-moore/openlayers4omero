@@ -1,0 +1,2 @@
++) rotation functionality out of the box
++) code can be extended but some (rendering) workflows are complex and take a long time to debug/understand

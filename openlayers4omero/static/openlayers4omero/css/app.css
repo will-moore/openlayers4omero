@@ -25,6 +25,11 @@ html, body {
 	height: 100%;
 }
 
+#main .view {
+	width: 85%;
+	height: 100%;
+}
+
 #ome_session_id {
 	padding-left: 10px;
 }
@@ -54,7 +59,21 @@ fieldset {
 	border: none;
 }
 
+#ome_t_index {
+	margin-left: 5px;
+	display: none;
+	width: 45%;
+	height: 5%%;
+}
+
+#ome_z_index {
+	margin-left: 5px;
+	display: none;
+	width: 45%;
+	height: 5%%;
+}
+
 #ome_viewport {
-	width: 85%;
-	height: 100%;
+	width: 100%;
+	height: 95%;
 }

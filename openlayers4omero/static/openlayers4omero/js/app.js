@@ -102,8 +102,48 @@ var app = function() {
 				app.viewport.getLayers().clear();
 				app.viewport = null;
 				$('#ome_viewport').html("");
-			} 
+			}
+			app.resetPlaneAndTimeSlider();
+		},
+		resetPlaneAndTimeSlider : function() {
+			var dim = ['z', 't'];
+			for (d in dim) {
+				var id = '#ome_' + dim[d] + '_index';
+				if ($(id) == null || $(id).length == 0)
+					continue;
+				$(id).off();
+				$(id).attr("max", 0);
+				$(id).val(0);
+				$(id).hide();
+			}
+		},
+		initPlaneAndTimeSlider : function(dims) {
+			if (typeof(dims) != 'object' || typeof(dims.length) != 'number')
+				return;
+			if (dims.length == 0)
+				return;
 			
+			for (d in dims) {
+				if (typeof(dims[d].count) != 'number' || dims[d].count <= 1)
+					continue;
+				var id = '#ome_' + dims[d].name + '_index';
+				var dimCount = dims[d].count;
+
+				$(id).attr("max",--dimCount);
+				$(id).val(Math.ceil(--dimCount/2));
+				$(id).show();
+			
+				(function(_id) {
+					$(_id).on('change', function(event) {
+						var source = app.viewport.getLayers().item(0).get("source");
+						if (_id == '#ome_z_index')
+							source.setPlane(parseInt($(_id).val()));
+						else
+							source.setTime(parseInt($(_id).val()));
+						source.setTileLoadFunction(source.getTileLoadFunction());
+					})
+				})(id);
+			}
 		},
 		updateThumbnail : function(event) {
 			var selected = $("#ome_images option:selected").val();
@@ -116,50 +156,70 @@ var app = function() {
 				alert('dataset' + selected + 'not found')
 			
 			var selDs = app.images[selected];
+						
+			// this is the open layers initialization/update section
 			var zoom = selDs.zoomLevelScaling ? selDs.zoomLevelScaling.length : -1;
 				
-				var width = selDs.sizeX;
-				var height = selDs.sizeY;
-				
-				var imgCenter = [width / 2, -height / 2];
+			var width = selDs.sizeX;
+			var height = selDs.sizeY;
+			var planes = selDs.sizeZ;
+			var times = selDs.sizeT;
+			
+			// slider intialization?
+			app.resetPlaneAndTimeSlider();
+			var dims = [
+			     { name: "z", count: planes },
+			     { name: "t", count: times }
+			];
+			app.initPlaneAndTimeSlider(dims);
 
-				var proj = new ol.proj.Projection({
-					code: 'OMERO',
-					units: 'pixels',
-					extent: [0, 0, width, height]
-				});
+			var imgCenter = [width / 2, -height / 2];
 
-				var source = new ol.source.Omero({
-					url: 'image/' + selDs.id + '/0/0',
-					size: [width, height],
-					crossOrigin: 'anonymous',
-					resolutions: selDs.zoomLevelScaling ? selDs.zoomLevelScaling : [1]
+			var proj = new ol.proj.Projection({
+				code: 'OMERO',
+				units: 'pixels',
+				extent: [0, 0, width, height]
+			});
+
+			var source = new ol.source.Omero({
+				url: 'image/' + selDs.id,
+				sizeX: width,
+				sizeY: height,
+				plane: planes > 1 ? parseInt($('#ome_z_index').val()) : 0,
+				time: times > 1 ? parseInt($('#ome_t_index').val()) : 0,
+				crossOrigin: 'anonymous',
+				resolutions: zoom > 1 ? selDs.zoomLevelScaling : [1]
+			});
+			
+			var opt = {
+					projection: proj,
+					center: imgCenter,
+					extent: [0, -height, width, 0],
+					resolution:  zoom > 1 ? source.getResolutions()[0] : 1,
+					//zoom: zoom > 1 ? 0 : 1,
+					minZoom: 0,
+					maxZoom: zoom > 1 ? (zoom * 2)-1 : 5
+			};
+			var view = new ol.View(opt);
+			
+			if (app.viewport == null) 
+				app.viewport = new ol.Map({
+					logo: false,
+					controls: ol.control.defaults().extend([
+					      new ol.control.OverviewMap()
+					]),
+					interactions: ol.interaction.defaults().extend([
+					     new ol.interaction.DragRotateAndZoom()
+					]),
+					layers: [new ol.layer.Tile({source: source, preload: Infinity})],
+				    target: 'ome_viewport',
+				    view: view
 				});
-				var opt = {
-						projection: proj,
-						center: imgCenter,
-						zoom: zoom > 0 ? zoom : 2,
-						extent: [0, -height, width, 0]
-				};
-				var view = new ol.View(opt);
-				
-				if (app.viewport == null) 
-					app.viewport = new ol.Map({
-						controls: ol.control.defaults().extend([
-						      new ol.control.OverviewMap()
-						]),
-						interactions: ol.interaction.defaults().extend([
-						     new ol.interaction.DragRotateAndZoom()
-						]),
-						layers: [new ol.layer.Tile({source: source, preload: Infinity})],
-					    target: 'ome_viewport',
-					    view: view
-					});
-				else {
-					app.viewport.getLayers().clear();
-					app.viewport.setView(view);
-					app.viewport.addLayer(new ol.layer.Tile({source: source}));
-				}
+			else {
+				app.viewport.getLayers().clear();
+				app.viewport.setView(view);
+				app.viewport.addLayer(new ol.layer.Tile({source: source}));
+			}
 		},
 		registerListeners : function() {
 			$('#ome_connect_form').submit(

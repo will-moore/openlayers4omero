@@ -11,67 +11,68 @@ goog.require('ol.proj');
 goog.require('ol.source.TileImage');
 goog.require('ol.tilegrid.TileGrid');
 
+ol.source.Omero = function(opts) {
+	this.plane_ = opts.plane || 0;
+	this.time_ =  opts.time || 0;
 
-/**
- * @classdesc
- * Layer source for tile data from an Omero Server.
- *
- * @constructor
- * @extends {ol.source.TileImage}
- * @param {olx.source.OmeroOptions=} opt_options Options.
- * @api stable
- */
-ol.source.Omero = function(opt_options) {
-
-  var options = opt_options || {};
-  var size = options.size;
-  var tileSize = opt_options.tile_size || ol.DEFAULT_TILE_SIZE;
+	var size = opts.sizeX;
+	var tileSize = opts.tile_size || ol.DEFAULT_TILE_SIZE;
   
-  var imageWidth = size[0];
-  var imageHeight = size[1];
+	var width = opts.sizeX;
+	var height = opts.sizeY;
 
-  var extent = [0, -imageHeight, imageWidth, 0];
-  var tileGrid = new ol.tilegrid.TileGrid({
-	tileSize: [tileSize, tileSize],
-    extent: extent,
-    origin: ol.extent.getTopLeft(extent),
-    resolutions: options.resolutions || [1]
-  });
+	var extent = [0, -height, width, 0];
+	var tileGrid = new ol.tilegrid.TileGrid({
+		tileSize: [tileSize, tileSize],
+	    extent: extent,
+	    origin: ol.extent.getTopLeft(extent),
+	    resolutions: opts.resolutions || [1]
+	});
 
-  var url = options.url;
+	var url = opts.url;
 
-  /**
-   * @this {ol.source.TileImage}
-   * @param {ol.TileCoord} tileCoord Tile Coordinate.
-   * @param {number} pixelRatio Pixel ratio.
-   * @param {ol.proj.Projection} projection Projection.
-   * @return {string|undefined} Tile URL.
-   */
-  function tileUrlFunction(tileCoord, pixelRatio, projection) {
-    if (!tileCoord) {
-      return undefined;
-    } else {
-      var tileCoordZ = tileCoord[0];
-      var tileCoordX = tileCoord[1];
-      var tileCoordY = -tileCoord[2] - 1;
-      
-      var zoom = this.tileGrid.resolutions_.length - tileCoordZ - 1;
-      return url + '/' + tileCoordX + '/' + tileCoordY + '/' + this.tileGrid.tileSize_[0] + '/' + this.tileGrid.tileSize_[1] + '/' + zoom; 
-    }
-  }
-
-  goog.base(this, {
-    attributions: options.attributions,
-    crossOrigin: options.crossOrigin,
-    logo: options.logo,
-    reprojectionErrorThreshold: options.reprojectionErrorThreshold,
-    tileGrid: tileGrid,
-    tileUrlFunction: tileUrlFunction
-  });
+	function tileUrlFunction(tileCoord, pixelRatio, projection) {
+		if (!tileCoord) {
+			return undefined;
+		} else {
+			var zoom = this.tileGrid.resolutions_.length - tileCoord[0] - 1;
+    	
+			return url + 
+      			'/' + this.getPlane() + '/' + this.getTime() +
+      			'/' + tileCoord[1] + '/' + (-tileCoord[2]-1) + '/' +
+      			this.tileGrid.tileSize_[0] + '/' + this.tileGrid.tileSize_[1] +
+      			'/' + zoom; 
+			}
+	}
+  
+	goog.base(this, {
+		attributions: opts.attributions,
+		crossOrigin: opts.crossOrigin,
+		logo: opts.logo,
+		reprojectionErrorThreshold: opts.reprojectionErrorThreshold,
+		tileGrid: tileGrid,
+		tileUrlFunction: tileUrlFunction
+	});
 
 };
-
 goog.inherits(ol.source.Omero, ol.source.TileImage);
+
+ol.source.Omero.prototype.getPlane = function() {
+	  return this.plane_;
+}
+
+ol.source.Omero.prototype.setPlane = function(value) {
+	  this.plane_ = value;
+}
+
+ol.source.Omero.prototype.getTime = function() {
+	  return this.time_;
+}
+
+ol.source.Omero.prototype.setTime = function(value) {
+	  this.time_ = value;
+}
+
 goog.exportProperty(
 	    ol.source.Omero.prototype,
 	    'setRenderReprojectionEdges',
@@ -211,3 +212,23 @@ goog.exportProperty(
     ol.source.Omero.prototype,
     'unByKey',
     ol.source.Omero.prototype.unByKey);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'updatePlane',
+	ol.source.Omero.prototype.getTime);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'updateTime',
+	ol.source.Omero.prototype.setTime);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'getPlane',
+	ol.source.Omero.prototype.getPlane);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'getTime',
+	ol.source.Omero.prototype.getTime);
