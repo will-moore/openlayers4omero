@@ -69,7 +69,20 @@ fieldset {
 #ome_z_index {
 	margin-left: 5px;
 	display: none;
-	width: 45%;
+	width: 40%;
+	height: 5%%;
+}
+#ome_t_index {
+	margin-left: 5px;
+	display: none;
+	width: 40%;
+	height: 5%%;
+}
+
+#ome_c_index {
+	margin-left: 5px;
+	display: none;
+	width: 15%;
 	height: 5%%;
 }
 

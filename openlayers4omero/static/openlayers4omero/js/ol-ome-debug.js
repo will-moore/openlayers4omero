@@ -14,6 +14,7 @@ goog.require('ol.tilegrid.TileGrid');
 ol.source.Omero = function(opts) {
 	this.plane_ = opts.plane || 0;
 	this.time_ =  opts.time || 0;
+	this.channel_ = opts.channel || 0
 
 	var size = opts.sizeX;
 	var tileSize = opts.tile_size || ol.DEFAULT_TILE_SIZE;
@@ -38,7 +39,7 @@ ol.source.Omero = function(opts) {
 			var zoom = this.tileGrid.resolutions_.length - tileCoord[0] - 1;
     	
 			return url + 
-      			'/' + this.getPlane() + '/' + this.getTime() +
+      			'/' + this.getPlane() + '/' + this.getTime() + '/' + this.getChannel() +
       			'/' + tileCoord[1] + '/' + (-tileCoord[2]-1) + '/' +
       			this.tileGrid.tileSize_[0] + '/' + this.tileGrid.tileSize_[1] +
       			'/' + zoom; 
@@ -71,6 +72,14 @@ ol.source.Omero.prototype.getTime = function() {
 
 ol.source.Omero.prototype.setTime = function(value) {
 	  this.time_ = value;
+}
+
+ol.source.Omero.prototype.getChannel = function() {
+	  return this.channel_;
+}
+
+ol.source.Omero.prototype.setChannel = function(value) {
+	  this.channel_ = value;
 }
 
 goog.exportProperty(

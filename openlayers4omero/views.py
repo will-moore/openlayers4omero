@@ -35,7 +35,7 @@ def thumbnail(request, imageid):
     
     return renderResponse(img_data)
 
-def image(request, imageid, z=0, t=0, x=None, y=None, w=None, h=None, l=None):
+def image(request, imageid, z=0, t=0, c=0, x=None, y=None, w=None, h=None, l=None):
     if imageid is None:
         return JsonResponse({ "error" : "no image id supplied"})
     
@@ -47,7 +47,7 @@ def image(request, imageid, z=0, t=0, x=None, y=None, w=None, h=None, l=None):
             'w' : w,
             'h' : h
             }
-    img_data = App(request).getImage(imageid, z, t, tile, l)
+    img_data = App(request).getImage(imageid, z, t, c, tile, l)
     
     return renderResponse(img_data)
     

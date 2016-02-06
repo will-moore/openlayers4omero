@@ -71,8 +71,9 @@ class App:
                                    ,"sizeZ" : image.getSizeZ(), "sizeT" : image.getSizeT()
                                    ,"sizeC" : image.getSizeC()
                                    ,"zoomLevelScaling" : self.convertDictToArray(image.getZoomLevelScaling())
-                                   ,"isGreyScale" : image.isGreyscaleRenderingModel(),
-                                    "roiCount" : image.getROICount(), "requiresPixelsPyramid" : image.requiresPixelsPyramid()
+                                   ,"isGreyScale" : image.isGreyscaleRenderingModel()
+                                   , "channelLabels" : image.getChannelLabels()
+                                   ,"roiCount" : image.getROICount(), "requiresPixelsPyramid" : image.requiresPixelsPyramid()
                                    })
             if tmp_images:
                 ret.append({"name" : dataset.getName(), "id" : dataset.getId(), "images" : tmp_images })
@@ -112,12 +113,15 @@ class App:
             print e
             return None
 
-    def getImage(self, imageid, z=0, t=0, tile=None, l=None):
+    def getImage(self, imageid, z=0, t=0, c=0, tile=None, l=None):
         img = self.getImage0(imageid)
         if img is None:
             return None
         
         try:
+            c = int(c)
+            if c > 0:
+                img.setActiveChannels([c])
             if tile is None: 
                 return img.renderJpeg(z, t)
 

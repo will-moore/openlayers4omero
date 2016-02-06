@@ -103,21 +103,27 @@ var app = function() {
 				app.viewport = null;
 				$('#ome_viewport').html("");
 			}
-			app.resetPlaneAndTimeSlider();
+			app.resetPlaneTimeChannelControls();
 		},
-		resetPlaneAndTimeSlider : function() {
-			var dim = ['z', 't'];
+		resetPlaneTimeChannelControls : function() {
+			var dim = ['z', 't', 'c'];
 			for (d in dim) {
 				var id = '#ome_' + dim[d] + '_index';
 				if ($(id) == null || $(id).length == 0)
 					continue;
 				$(id).off();
-				$(id).attr("max", 0);
-				$(id).val(0);
+				if (dim[d] == 'c') {
+					$(id + ' option').each(function(index, option) {
+					    $(option).remove();
+					});
+				} else {
+					$(id).attr("max", 0);
+					$(id).val(0);
+				}
 				$(id).hide();
 			}
 		},
-		initPlaneAndTimeSlider : function(dims) {
+		initPlaneTimeChannelControls : function(dims, selDs) {
 			if (typeof(dims) != 'object' || typeof(dims.length) != 'number')
 				return;
 			if (dims.length == 0)
@@ -129,8 +135,19 @@ var app = function() {
 				var id = '#ome_' + dims[d].name + '_index';
 				var dimCount = dims[d].count;
 
-				$(id).attr("max",--dimCount);
-				$(id).val(Math.ceil(--dimCount/2));
+				if (dims[d].name == 'c') {
+					var count=1;
+					$(id).append('<option value="0" selected="selected">default</option>');
+					for (i in selDs.channelLabels) {
+						$(id).append('<option value="' + count +
+								'" selected="">' + selDs.channelLabels[i] + '</option>');
+						count++;
+					}
+					$(id).val(0);
+				} else {
+					$(id).attr("max",--dimCount);
+					$(id).val(Math.ceil(--dimCount/2));
+				}
 				$(id).show();
 			
 				(function(_id) {
@@ -138,8 +155,10 @@ var app = function() {
 						var source = app.viewport.getLayers().item(0).get("source");
 						if (_id == '#ome_z_index')
 							source.setPlane(parseInt($(_id).val()));
-						else
+						else if (_id == '#ome_t_index')
 							source.setTime(parseInt($(_id).val()));
+						else if  (_id == '#ome_c_index')
+							source.setChannel(parseInt($(_id).val()));
 						source.setTileLoadFunction(source.getTileLoadFunction());
 					})
 				})(id);
@@ -164,14 +183,16 @@ var app = function() {
 			var height = selDs.sizeY;
 			var planes = selDs.sizeZ;
 			var times = selDs.sizeT;
+			var channels = selDs.sizeC;
 			
 			// slider intialization?
-			app.resetPlaneAndTimeSlider();
+			app.resetPlaneTimeChannelControls();
 			var dims = [
 			     { name: "z", count: planes },
-			     { name: "t", count: times }
+			     { name: "t", count: times },
+			     { name: "c", count: channels },
 			];
-			app.initPlaneAndTimeSlider(dims);
+			app.initPlaneTimeChannelControls(dims, selDs);
 
 			var imgCenter = [width / 2, -height / 2];
 
@@ -187,6 +208,7 @@ var app = function() {
 				sizeY: height,
 				plane: planes > 1 ? parseInt($('#ome_z_index').val()) : 0,
 				time: times > 1 ? parseInt($('#ome_t_index').val()) : 0,
+				channel: channels > 1 ? parseInt($('#ome_c_index').val()) : 0,
 				crossOrigin: 'anonymous',
 				resolutions: zoom > 1 ? selDs.zoomLevelScaling : [1]
 			});
