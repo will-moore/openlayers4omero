@@ -242,6 +242,40 @@ var app = function() {
 				app.viewport.setView(view);
 				app.viewport.addLayer(new ol.layer.Tile({source: source}));
 			}
+			
+			// if roi count > 0 send off request for image
+			if (selDs.roiCount > 0)
+				app.dealWithRois(selDs.id);
+		},
+		dealWithRois : function(id) {
+			var params = {url: 'rois/' + id, data: 'json'};
+			var success = function(data) {
+				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
+					$('#ome_error_log').html("roi request gave no array back");
+				
+				/*
+				 * TODO: render on vector layer && add draw and modify 
+				var stroke = new ol.style.Stroke({color: 'black', width: 2});
+				var fill = new ol.style.Fill({color: 'red'});
+				
+				var features = [
+					new ol.Feature(new ol.geom.Circle([0,0], 100))
+				];
+				var style =
+						new ol.style.Style({
+					          fill: fill,
+					          stroke : stroke});
+				app.viewport.addLayer(
+					new ol.layer.Vector({
+						source : 
+							new ol.source.Vector({features: features}),
+						style : style}));
+				*/
+			};
+			var failure = function(error) {
+				$('#ome_error_log').html(error);
+			};
+			app.sendRequest(params, success, failure);	
 		},
 		registerListeners : function() {
 			$('#ome_connect_form').submit(

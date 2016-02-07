@@ -50,7 +50,12 @@ def image(request, imageid, z=0, t=0, c=0, x=None, y=None, w=None, h=None, l=Non
     img_data = App(request).getImage(imageid, z, t, c, tile, l)
     
     return renderResponse(img_data)
-    
+
+def rois(request, imageId):
+    if imageId is None:
+        return JsonResponse({ "error" : "no image id supplied"})
+    return JsonResponse(App(request).get_rois(imageId), safe=False)
+
 def renderResponse(img_data):
     if img_data is None:
         return JsonResponse({ "error" : "did not receive image data!"})

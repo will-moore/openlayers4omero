@@ -1,7 +1,5 @@
 from omero.gateway import BlitzGateway
-from __builtin__ import False
-from django.db.models.lookups import Second
-
+from omeroweb.webgateway.marshal import shapeMarshal
 class App:
     _connection = None
     _request = None
@@ -90,6 +88,38 @@ class App:
         try:
             img = self._connection.getObject("Image", imageid)
             return img
+        except Exception as e:
+            print e
+            return None
+
+    def get_rois(self, imageId):
+        if self._connection is None or not self._connection.isConnected():
+            if not self.connect(): return None
+
+        try:
+            rois = []
+            roiService = self._connection.getRoiService()
+            result = roiService.findByImage(long(imageId), None, self._connection.SERVICE_OPTS)
+        
+            for r in result.rois:
+                roi = {}
+                roi['id'] = r.getId().getValue()
+                # go through all the shapes of the ROI
+                shapes = []
+                for s in r.copyShapes():
+                    if s is None:   # seems possible in some situations
+                        continue
+                    shapes.append(shapeMarshal(s))
+                # sort shapes by Z, then T.
+                shapes.sort(
+                    key=lambda x: "%03d%03d"
+                    % (x.get('theZ', -1), x.get('theT', -1)))
+                roi['shapes'] = shapes
+                rois.append(roi)
+        
+            rois.sort(key=lambda x: x['id'])
+        
+            return rois
         except Exception as e:
             print e
             return None
