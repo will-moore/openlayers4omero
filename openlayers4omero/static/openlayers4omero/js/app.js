@@ -220,7 +220,7 @@ var app = function() {
 					resolution:  zoom > 1 ? source.getResolutions()[0] : 1,
 					//zoom: zoom > 1 ? 0 : 1,
 					minZoom: 0,
-					maxZoom: zoom > 1 ? (zoom * 2)-1 : 5
+					maxZoom: zoom > 1 ? (zoom * 3)-1 : 5
 			};
 			var view = new ol.View(opt);
 			
@@ -253,24 +253,23 @@ var app = function() {
 				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
 					$('#ome_error_log').html("roi request gave no array back");
 				
-				/*
-				 * TODO: render on vector layer && add draw and modify 
-				var stroke = new ol.style.Stroke({color: 'black', width: 2});
-				var fill = new ol.style.Fill({color: 'red'});
+				var features = []; 
+				for (i in data) {
+					if (typeof(data[i]) != 'object' || typeof(data[i].shapes) != 'object') continue;
+					for (s in data[i].shapes) {
+						if (typeof(data[i].shapes[s].type) != 'string')
+							continue;
+						var feat = app.roiRenderHandler[data[i].shapes[s].type];
+						if (typeof(feat) != 'function')
+							continue;
+						features.push(feat(data[i].shapes[s]));
+					}
+				}
 				
-				var features = [
-					new ol.Feature(new ol.geom.Circle([0,0], 100))
-				];
-				var style =
-						new ol.style.Style({
-					          fill: fill,
-					          stroke : stroke});
-				app.viewport.addLayer(
-					new ol.layer.Vector({
-						source : 
-							new ol.source.Vector({features: features}),
-						style : style}));
-				*/
+				if (features.length > 0)
+					app.viewport.addLayer(
+						new ol.layer.Vector({
+							source : new ol.source.Vector({features: features})}));
 			};
 			var failure = function(error) {
 				$('#ome_error_log').html(error);
@@ -289,6 +288,98 @@ var app = function() {
 			window.onbeforeunload = function() {
 				app.close();
 			};
+		},
+		roiRenderHandler : {
+			"Rectangle" : function(shape) {
+				var geometry =  
+					new ol.geom.Polygon(
+						[[[shape.x, -shape.y],
+						 [shape.x+shape.width, -shape.y],
+						 [shape.x+shape.width, -shape.y+shape.height],
+						 [shape.x, -shape.y+shape.height],
+						 [shape.x, -shape.y]
+						]],ol.geom.GeometryLayout.XY);
+				
+				var feat = new ol.Feature({geometry : geometry});
+				feat.setStyle(app.createFeatureStyle(shape));
+				return feat;
+			}, "Label" : function(shape) {
+				var feat = new ol.Feature({geometry : new ol.geom.Circle([shape.x, -shape.y], 10)});
+				feat.setStyle(app.createFeatureStyle(shape));
+				return feat;
+			}
+		}, createFeatureStyle : function(shape) {
+			if (typeof(shape) != 'object') return null;
+			
+			var stroke = {count : 0};
+			var fill = {count : 0};
+			
+			if (shape.fillColor) {
+				if (shape.fillAlpha)
+					fill.color = app.convertHexRgbStringToRgbaString(shape.fillColor, shape.fillAlpha);
+				else 
+					fill.color = shape.fillColor;
+				fill.count++;
+			}
+			if (shape.strokeColor) {
+				if (shape.strokeAlpha)
+					stroke.color = app.convertHexRgbStringToRgbaString(shape.strokeColor, shape.strokeAlpha);
+				else
+					stroke.color = shape.strokeColor;
+				stroke.count++;
+			}
+			if (shape.strokeWidth) {
+				stroke.width = shape.strokeWidth;
+				stroke.count++;
+			}
+			if (shape.textValue)
+				fill.color = stroke.color
+				
+			stroke = (stroke.count > 0) ? new ol.style.Stroke(stroke) : null;
+			fill = (fill.count > 0) ? new ol.style.Fill(fill) : null;
+			
+			var style = {};
+			if (shape.textValue) {
+				var text = {text : shape.textValue};
+				var font = ""
+				if (shape.fontStyle) font += (shape.fontStyle + " ");
+				if (shape.fontSize) font += (shape.fontSize + "px ");	
+				if (shape.fontFamily) font += shape.fontFamily;	
+				text.font = font;
+				if (fill) text.fill = fill;
+				if (stroke) text.stroke = stroke
+				style.text = new ol.style.Text(text);
+			} else {
+				if (stroke) style.stroke = stroke;
+				if (fill) style.fill = fill;
+			}
+			
+			return new ol.style.Style(style);
+		}, convertHexRgbStringToRgbaString : function(hex_rgb, alpha) {
+			if (typeof(hex_rgb) != 'string')
+				return hex_rgb;
+			if (typeof(alpha) != 'number')
+				return hex_rgb;
+			
+			var len = hex_rgb.length;
+			if (len != 7)
+				return hex_rgb;
+			
+			// chop off #
+			hex_rgb = hex_rgb.substring(1);
+			len--;
+			
+			ret = 'rgba(';
+			var i=0;
+			while ((len-i) > 0) {
+				try {
+					ret += (parseInt(hex_rgb.substring(i, i+2), 16) + ',');
+					i += 2;
+				} catch (ignored){
+					return hex_rgb;
+				}
+			}
+			return ret + alpha + ')';
 		}
 	}
 }();
