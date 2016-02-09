@@ -1,9 +1,13 @@
 +) rotation functionality out of the box
 +) code can be extended but some (rendering) workflows are complex and take a long time to debug/understand
 
+-/+) webgl renderer under way - experimental
+
+-) scaling with text annotation (probably not to difficult to address)
+-) preferred way of open layers to deal with shapes is to work with geojson and some predefined shapes
+   most of it can be tweaked/wrapped but the stored svg paths are only easily wrapped if they use line segments/points
+   canvas can deal with bezier for instance but ol does not cater for it specificially, it deals in polygons mainly
 
 
 TODO:
--) ellipses test (extension)
 -) saving rois
--) geojson ?

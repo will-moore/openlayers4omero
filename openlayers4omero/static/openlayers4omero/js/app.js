@@ -77,6 +77,7 @@ var app = function() {
 						if (count == 0)
 							selected = data[d].images[i].id;
 						app.images[data[d].images[i].id] = data[d].images[i];
+						app.images[data[d].images[i].id].rois = null;
 						$('#ome_images').append('<option value="' + data[d].images[i].id +
 								'" selected="">' + data[d].images[i].name + '</option>');
 						count++;
@@ -224,28 +225,49 @@ var app = function() {
 			};
 			var view = new ol.View(opt);
 			
-			if (app.viewport == null) 
+			if (app.viewport == null) { 
+				var select = new ol.interaction.Select();
+				var selFeats = select.getFeatures();
+				selFeats.on('add', function(event) {
+					var feature = event.element;
+					feature.on('change', function(ev) {
+						app.updateRoi(ev.target);
+					});
+				});
+				
+				var translate = new ol.interaction.Translate({
+					features: select.getFeatures()
+				});
+
+				var modify = new ol.interaction.Modify({
+					features: select.getFeatures()
+				});
+
+				// TODO: add drawing support and event for roi addition
+				
 				app.viewport = new ol.Map({
 					logo: false,
 					controls: ol.control.defaults().extend([
 					      new ol.control.OverviewMap()
 					]),
 					interactions: ol.interaction.defaults().extend([
-					     new ol.interaction.DragRotateAndZoom()
+					     new ol.interaction.DragRotateAndZoom(), select, translate, modify
 					]),
 					layers: [new ol.layer.Tile({source: source, preload: Infinity})],
 				    target: 'ome_viewport',
 				    view: view
 				});
-			else {
+			} else {
 				app.viewport.getLayers().clear();
 				app.viewport.setView(view);
 				app.viewport.addLayer(new ol.layer.Tile({source: source}));
 			}
 			
 			// if roi count > 0 send off request for image
-			if (selDs.roiCount > 0)
+			if (selDs.roiCount > 0) {
+				app.images[selDs.id].rois = null;
 				app.dealWithRois(selDs.id);
+			}
 		},
 		dealWithRois : function(id) {
 			var params = {url: 'rois/' + id, data: 'json'};
@@ -253,16 +275,22 @@ var app = function() {
 				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
 					$('#ome_error_log').html("roi request gave no array back");
 				
+				app.images[id].rois = data;
+				
 				var features = []; 
 				for (i in data) {
 					if (typeof(data[i]) != 'object' || typeof(data[i].shapes) != 'object') continue;
+					data[i].modified = false; // this is just a tmp way, checksum comparison at update would be stable
 					for (s in data[i].shapes) {
 						if (typeof(data[i].shapes[s].type) != 'string')
 							continue;
+						data[i].shapes[s].modified = false
 						var feat = app.roiRenderHandler[data[i].shapes[s].type];
 						if (typeof(feat) != 'function')
 							continue;
-						features.push(feat(data[i].shapes[s]));
+						var actFeat = feat(data[i].shapes[s]);
+						actFeat.setId('' + id + ':' + data[i].id + ":" + data[i].shapes[s].id);
+						features.push(actFeat);
 					}
 				}
 				
@@ -275,6 +303,64 @@ var app = function() {
 				$('#ome_error_log').html(error);
 			};
 			app.sendRequest(params, success, failure);	
+		},
+		findFeatureInImageData : function(combined_id) {
+			if (typeof(combined_id) != 'string')
+				return null;
+			
+			var tok = combined_id.split(':');
+			if (typeof(tok) != 'object' || typeof(tok.length) != 'number' || tok.length != 3)
+				return null;
+			
+			if (app && typeof(app.images[tok[0]]) == 'object' && typeof(app.images[tok[0]].rois) == 'object') {
+				var imgRois = app.images[tok[0]].rois;
+				for (roi in imgRois) {
+					try {
+						var t1 = parseInt(tok[1]);
+					} catch(ignored) {
+						continue;
+					}
+					var r = imgRois[roi];
+					if (typeof(r.id) != 'number' || r.id != t1 || typeof(r.shapes) == 'undefined')
+						continue;
+					for (shap in r.shapes) {
+						try {
+							var t2 = parseInt(tok[2]);
+						} catch(ignored) {
+							continue;
+						}
+						var s = r.shapes[shap];
+						if (typeof(s.id) != 'number' || s.id != t2)
+							continue;
+						r.img_id = tok[0];
+						return r;
+					}
+				}
+			}
+			
+			return null;
+		}, addRoi : function(feature, imageId) {
+			if (typeof(feature) != 'object')
+				return;
+			// TODO: implement
+		}, updateRoi : function(feature) {
+			if (typeof(feature) != 'object')
+				return;
+
+			var hit = app.findFeatureInImageData(feature.getId());
+			if (hit == null)
+				return;
+			var convFeat = app.convertFeature(feature);
+			if (convFeat == null)
+				return;
+			
+			var rois = app.images[hit.img_id].rois;
+			for (r in rois)
+				if (rois[r].id == hit.id) 
+					rois[r] = convFeat;
+			// TODO: implement
+		}, convertFeature : function(feature) {
+			// TODO: convert to json structure, also set modified flag
 		},
 		registerListeners : function() {
 			$('#ome_connect_form').submit(
@@ -295,8 +381,8 @@ var app = function() {
 					new ol.geom.Polygon(
 						[[[shape.x, -shape.y],
 						 [shape.x+shape.width, -shape.y],
-						 [shape.x+shape.width, -shape.y+shape.height],
-						 [shape.x, -shape.y+shape.height],
+						 [shape.x+shape.width, -shape.y-shape.height],
+						 [shape.x, -shape.y-shape.height],
 						 [shape.x, -shape.y]
 						]],ol.geom.GeometryLayout.XY);
 				
@@ -305,6 +391,44 @@ var app = function() {
 				return feat;
 			}, "Label" : function(shape) {
 				var feat = new ol.Feature({geometry : new ol.geom.Circle([shape.x, -shape.y], 10)});
+				feat.setStyle(app.createFeatureStyle(shape));
+				return feat;
+			}, "Polygon" : function(shape) {
+				if (typeof(shape.points) != 'string' || shape.points.length == 0)
+					return null;
+				var c=0;
+				var len=shape.points.length;
+				var coords = [];
+				var start = -1;
+				while (len-c > 0) { // get rid of anything that is not M,L or z
+					if (shape.points[c] == ' ')
+						++c;
+					var v = shape.points[c].toLowerCase();
+					if (v == 'm' || v == 'l' || v == 'z') {
+						if (start < 0) {
+							if (v == 'z')
+								break;
+							start = c+1;
+							while (len-c > 0 && shape.points[++c] == ' ')
+								start++;
+						} else {
+							try {
+								var tok = shape.points.substring(start, c-1).split(" ");
+								if (typeof(tok) != 'object' || tok.length != 2)
+									return null;
+								
+								coords.push([parseInt(tok[0]), -parseInt(tok[1])]);
+								start = -1;
+								c--;
+						 	} catch(err) {
+						 		return null;
+						 	}
+						}
+					}
+					c++;
+				}
+				
+				var feat = new ol.Feature({geometry : new ol.geom.Polygon([coords])});
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
 			}
@@ -348,6 +472,8 @@ var app = function() {
 				text.font = font;
 				if (fill) text.fill = fill;
 				if (stroke) text.stroke = stroke
+				text.textBaseline = 'top';
+				text.textAlign = 'left';
 				style.text = new ol.style.Text(text);
 			} else {
 				if (stroke) style.stroke = stroke;
