@@ -12,6 +12,7 @@ goog.require('ol.source.TileImage');
 goog.require('ol.tilegrid.TileGrid');
 
 ol.source.Omero = function(opts) {
+	this.imageId_ = opts.image || 0;
 	this.plane_ = opts.plane || 0;
 	this.time_ =  opts.time || 0;
 	this.channel_ = opts.channel || 0
@@ -30,7 +31,7 @@ ol.source.Omero = function(opts) {
 	    resolutions: opts.resolutions || [1]
 	});
 
-	var url = opts.url;
+	var url = opts.url + "/" + this.imageId_;
 
 	function tileUrlFunction(tileCoord, pixelRatio, projection) {
 		if (!tileCoord) {
@@ -57,6 +58,14 @@ ol.source.Omero = function(opts) {
 
 };
 goog.inherits(ol.source.Omero, ol.source.TileImage);
+
+ol.source.Omero.prototype.getImageId = function() {
+	  return this.imageId_;
+}
+
+ol.source.Omero.prototype.setImageId = function(value) {
+	  this.imageId_ = value;
+}
 
 ol.source.Omero.prototype.getPlane = function() {
 	  return this.plane_;
@@ -224,20 +233,40 @@ goog.exportProperty(
 
 goog.exportProperty(
 	ol.source.Omero.prototype,
-	'updatePlane',
-	ol.source.Omero.prototype.getTime);
-
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'updateTime',
-	ol.source.Omero.prototype.setTime);
-
-goog.exportProperty(
-	ol.source.Omero.prototype,
 	'getPlane',
 	ol.source.Omero.prototype.getPlane);
 
 goog.exportProperty(
 	ol.source.Omero.prototype,
+	'setPlane',
+	ol.source.Omero.prototype.setPlane);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
 	'getTime',
 	ol.source.Omero.prototype.getTime);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'setTime',
+	ol.source.Omero.prototype.setTime);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'getChannel',
+	ol.source.Omero.prototype.getChannel);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'setChannel',
+	ol.source.Omero.prototype.setChannel);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'getImageId',
+	ol.source.Omero.prototype.getImageId);
+
+goog.exportProperty(
+	ol.source.Omero.prototype,
+	'setImageId',
+	ol.source.Omero.prototype.setImageId);

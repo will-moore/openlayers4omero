@@ -1,5 +1,8 @@
 from omero.gateway import BlitzGateway
 from omeroweb.webgateway.marshal import shapeMarshal
+from omero.model import RoiI, RectangleI
+from omero.rtypes import rint, rdouble
+
 class App:
     _connection = None
     _request = None
@@ -124,6 +127,31 @@ class App:
             print e
             return None
 
+    def addRoi(self, imageid ):
+        img = self.getImage0(imageid)
+        if img is None:
+            return None
+        
+        x = int(self._request.POST.get("x", "-1"))
+        y = int(self._request.POST.get("y", "-1"))
+        l = int(self._request.POST.get("length", "-1"))
+        
+        if (x < 0 or y < 0 or l <= 0):
+            return None
+        
+        updateService = self._connection.getUpdateService()
+        roi = RoiI()
+        roi.setImage(img._obj)
+        rect = RectangleI()
+        rect.x = rdouble(x)
+        rect.y = rdouble(y)
+        rect.width = rdouble(l)
+        rect.height = rdouble(l)
+        rect.theZ = rint(0)
+        rect.theT = rint(0)
+        roi.addShape(rect)
+
+        return updateService.saveAndReturnObject(roi)
     def equals(self, one_float, second_float, tolerance = 0.00000001):
         if type(one_float) is not float or type(second_float) is not float:
             return False

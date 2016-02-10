@@ -56,6 +56,11 @@ def rois(request, imageId):
         return JsonResponse({ "error" : "no image id supplied"})
     return JsonResponse(App(request).get_rois(imageId), safe=False)
 
+def addRoi(request, imageId):
+    if imageId is None:
+        return JsonResponse({ "error" : "no image id supplied"})
+    return JsonResponse(App(request).addRoi(imageId), safe=False)
+    
 def renderResponse(img_data):
     if img_data is None:
         return JsonResponse({ "error" : "did not receive image data!"})

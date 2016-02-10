@@ -100,11 +100,106 @@ var app = function() {
 			$('#ome_thumbnail').hide();
 			$('#ome_images').hide();
 			if (app.viewport != null) {
+				app.resetPlaneTimeChannelControls();
+				app.resetDrawMode();
 				app.viewport.getLayers().clear();
 				app.viewport = null;
 				$('#ome_viewport').html("");
 			}
-			app.resetPlaneTimeChannelControls();
+		},
+		initDrawMode : function() {
+			app.viewport.addLayer(new ol.layer.Vector({
+				source : new ol.source.Vector({}),
+				style: new ol.style.Style({
+					fill: new ol.style.Fill({
+						color: 'rgba(255, 255, 255, 0.2)'
+					}),
+					stroke: new ol.style.Stroke({
+						color: '#ffcc33',
+						width: 2
+					})
+				})}));
+
+			var select = new ol.interaction.Select();
+			var selFeats = select.getFeatures();
+			selFeats.on('add', function(event) {
+				var feature = event.element;
+				feature.on('change', function(ev) {
+					app.updateRoi(ev.target);
+				});
+			});
+			app.viewport.addInteraction(select);
+			
+			var translate = new ol.interaction.Translate({
+				features: select.getFeatures()
+			});
+			app.viewport.addInteraction(translate);
+			
+			var modify = new ol.interaction.Modify({
+				features: select.getFeatures()
+			});
+			app.viewport.addInteraction(modify);
+
+			var draw = new ol.interaction.Draw({
+				source: app.viewport.getLayers().item(
+						app.viewport.getLayers().getLength()-1).getSource(),
+				type: 'Circle',
+				geometryFunction: ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4)
+			});
+			draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+				event.feature.setStyle(
+					app.viewport.getLayers().item(app.viewport.getLayers().getLength()-1).getStyle());
+				app.addRoi(event.feature,
+					app.viewport.getLayers().item(0).getSource().getImageId());
+			});
+			app.viewport.addInteraction(draw);
+			app.activateDraw(false);
+			
+			$('#draw_or_view').val("view");
+			$('#draw_or_view').show();
+			$('#draw_or_view').on("change", 
+				function(event) {
+					if ($('#draw_or_view').val() == 'draw') app.activateDraw(true);
+					else app.activateDraw(false);
+				}
+			);
+		},
+		activateDraw : function(flag, remove) {
+			var setActiveOrNot = false;
+			if (typeof(flag) == 'boolean') setActiveOrNot = flag;
+			var delInter = remove || false;
+			
+			app.viewport.getInteractions().forEach(
+				function(item) {
+					if (item instanceof ol.interaction.Draw)  {
+						if (setActiveOrNot) item.setActive(true);
+						else {
+							if (delInter) app.viewport.removeInteraction(item);
+							else item.setActive(false);
+						}
+					} else if (item instanceof ol.interaction.Translate ||
+							item instanceof ol.interaction.Modify)  {
+						if (setActiveOrNot) item.setActive(false); // drawing and modifying mutually exclusive
+						else item.setActive(true);
+					}
+				}
+			);
+		},
+		resetDrawMode : function() {
+			$('#draw_or_view').val("view");
+			$('#draw_or_view').off(); 
+			$('#draw_or_view').hide();
+			app.activateDraw(false, true);
+			
+			app.viewport.getInteractions().forEach(
+				function(item) {
+					if (item instanceof ol.interaction.Draw || 
+							item instanceof ol.interaction.Modify || 
+							item instanceof ol.interaction.Select || 
+							item instanceof ol.interaction.Translate)
+						app.viewport.removeInteraction(item);
+				}
+			);
 		},
 		resetPlaneTimeChannelControls : function() {
 			var dim = ['z', 't', 'c'];
@@ -204,7 +299,8 @@ var app = function() {
 			});
 
 			var source = new ol.source.Omero({
-				url: 'image/' + selDs.id,
+				url: 'image',
+				image: selDs.id,
 				sizeX: width,
 				sizeY: height,
 				plane: planes > 1 ? parseInt($('#ome_z_index').val()) : 0,
@@ -224,44 +320,25 @@ var app = function() {
 					maxZoom: zoom > 1 ? (zoom * 3)-1 : 5
 			};
 			var view = new ol.View(opt);
+						
+			var rotate = new ol.interaction.DragRotateAndZoom();
 			
 			if (app.viewport == null) { 
-				var select = new ol.interaction.Select();
-				var selFeats = select.getFeatures();
-				selFeats.on('add', function(event) {
-					var feature = event.element;
-					feature.on('change', function(ev) {
-						app.updateRoi(ev.target);
-					});
-				});
-				
-				var translate = new ol.interaction.Translate({
-					features: select.getFeatures()
-				});
-
-				var modify = new ol.interaction.Modify({
-					features: select.getFeatures()
-				});
-
-				// TODO: add drawing support and event for roi addition
-				
 				app.viewport = new ol.Map({
 					logo: false,
-					controls: ol.control.defaults().extend([
-					      new ol.control.OverviewMap()
-					]),
-					interactions: ol.interaction.defaults().extend([
-					     new ol.interaction.DragRotateAndZoom(), select, translate, modify
-					]),
+					controls: ol.control.defaults().extend([new ol.control.OverviewMap()]),
+					interactions: ol.interaction.defaults().extend([rotate]),
 					layers: [new ol.layer.Tile({source: source, preload: Infinity})],
 				    target: 'ome_viewport',
 				    view: view
 				});
 			} else {
+				app.resetDrawMode();
 				app.viewport.getLayers().clear();
+				app.viewport.addLayer(new ol.layer.Tile({source: source, preload: Infinity}));
 				app.viewport.setView(view);
-				app.viewport.addLayer(new ol.layer.Tile({source: source}));
 			}
+			app.initDrawMode();
 			
 			// if roi count > 0 send off request for image
 			if (selDs.roiCount > 0) {
@@ -275,6 +352,10 @@ var app = function() {
 				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
 					$('#ome_error_log').html("roi request gave no array back");
 				
+				var source = 
+					app.viewport.getLayers().item(
+						app.viewport.getLayers().getLength()-1).getSource();
+
 				app.images[id].rois = data;
 				
 				var features = []; 
@@ -290,14 +371,10 @@ var app = function() {
 							continue;
 						var actFeat = feat(data[i].shapes[s]);
 						actFeat.setId('' + id + ':' + data[i].id + ":" + data[i].shapes[s].id);
-						features.push(actFeat);
+						source.addFeature(actFeat);
 					}
 				}
-				
-				if (features.length > 0)
-					app.viewport.addLayer(
-						new ol.layer.Vector({
-							source : new ol.source.Vector({features: features})}));
+				source.changed();
 			};
 			var failure = function(error) {
 				$('#ome_error_log').html(error);
@@ -340,9 +417,10 @@ var app = function() {
 			
 			return null;
 		}, addRoi : function(feature, imageId) {
-			if (typeof(feature) != 'object')
+			if (!(feature instanceof ol.Feature))
 				return;
-			// TODO: implement
+			var conFeat = app.convertFeature(feature);
+			//TODO: post to server
 		}, updateRoi : function(feature) {
 			if (typeof(feature) != 'object')
 				return;
@@ -360,7 +438,42 @@ var app = function() {
 					rois[r] = convFeat;
 			// TODO: implement
 		}, convertFeature : function(feature) {
-			// TODO: convert to json structure, also set modified flag
+			if (!(feature instanceof ol.Feature))
+				return null;
+			// for proof of concept, we do just the rectangle...
+			var coords = feature.getGeometry().getCoordinates()[0];
+			var x1 = Math.round(coords[0][0]);
+			var y1 = Math.round(-coords[0][1]);
+			var x2 = Math.round(coords[2][0]);
+			var y2 = Math.round(-coords[2][1]);
+			if (x1 > x2) {
+				var tmp = x2;
+				x2 = x1;
+				x1 = tmp;
+			}
+			if (y1 > y2) {
+				var tmp = y2;
+				y2 = y1;
+				y1 = tmp;
+			}
+
+			
+			var fill = feature.getStyle().getFill();
+			var fillColor = app.convertRgbaStringToHexRgbString(fill.getColor());
+			var stroke = feature.getStyle().getStroke();
+			var strokeColor = app.convertRgbaStringToHexRgbString(stroke.getColor());
+			
+			var ret = {id: -1, shapes: [ {
+				id: -1, theT: 0, theZ: 0, type: "Rectangle",
+				x : x1, y: y2, width: x2-x1, height: y2-y1,
+				fillAlpha: fillColor ? fillColor.alpha : 1.0,
+				fillColor: fillColor ? fillColor.rgb : "#000000", 
+				strokeAlpha: strokeColor ? strokeColor.alpha : 1.0,
+				strokeColor: strokeColor ? strokeColor.rgb : "#000000", 
+				strokeWidth: stroke.getWidth()
+			} ]};
+			
+			return ret;
 		},
 		registerListeners : function() {
 			$('#ome_connect_form').submit(
@@ -506,6 +619,22 @@ var app = function() {
 				}
 			}
 			return ret + alpha + ')';
+		}, 
+		convertRgbaStringToHexRgbString : function(rgba) {
+			if (typeof(rgba) != 'string')
+				return null;
+			if (rgba.length == 0)
+				return null;
+			if (rgba[0] == '#' && rgba.length == 7)
+				return {rgb: rgba, alpha: 1};
+			var pureRgbaWithCommas = rgba.replace(/\(rgba|\(|rgba|rgb|\)/g, "");
+			var tok = pureRgbaWithCommas.split(",");
+			if (tok.length == 3 || tok.length == 4) {
+				var ret = {rgb: "#" + parseInt(tok[0]).toString(16) + parseInt(tok[1]).toString(16) + parseInt(tok[2]).toString(16), alpha: 1.0};
+				if (tok.length == 4) ret.alpha = parseFloat(tok[3]);
+				return ret;
+			}
+			return null;
 		}
 	}
 }();
