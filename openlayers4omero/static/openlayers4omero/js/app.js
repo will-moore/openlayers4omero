@@ -6,7 +6,7 @@ var app = function() {
 			app.registerListeners();
 		},
 		sendCleanRequest : function() {
-			var params = {url: 'clean', data: 'json'};
+			var params = {url: 'clean', dataType: 'json'};
 			var success = function(data) {
 				if (data && data.disconnected) {
 					$('#ome_session_id').html("disconnected");
@@ -26,7 +26,7 @@ var app = function() {
 					}).error(failure);
 		},
 		connect : function() {
-			var params = {url: 'connect', data: 'json'};
+			var params = {url: 'connect', dataType: 'json'};
 			var success = function(data) {
 				if (data && data.sessionId) {
 					$('#ome_session_id').html(data.sessionId);
@@ -50,7 +50,7 @@ var app = function() {
 			app.clearImageList();
 		},
 		fetchDatasets : function() {
-			var params = {url: 'datasets', data: 'json'};
+			var params = {url: 'datasets', dataType: 'json'};
 			var success = function(data) {
 				if (data && data.datasets && data.datasets.length == 0) {
 					$('#ome_error_log').html("No datasets found");
@@ -347,39 +347,44 @@ var app = function() {
 			}
 		},
 		dealWithRois : function(id) {
-			var params = {url: 'rois/' + id, data: 'json'};
+			var params = {url: 'rois/' + id, dataType: 'json'};
 			var success = function(data) {
 				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
 					$('#ome_error_log').html("roi request gave no array back");
-				
-				var source = 
-					app.viewport.getLayers().item(
-						app.viewport.getLayers().getLength()-1).getSource();
 
-				app.images[id].rois = data;
-				
-				var features = []; 
-				for (i in data) {
-					if (typeof(data[i]) != 'object' || typeof(data[i].shapes) != 'object') continue;
-					data[i].modified = false; // this is just a tmp way, checksum comparison at update would be stable
-					for (s in data[i].shapes) {
-						if (typeof(data[i].shapes[s].type) != 'string')
-							continue;
-						data[i].shapes[s].modified = false
-						var feat = app.roiRenderHandler[data[i].shapes[s].type];
-						if (typeof(feat) != 'function')
-							continue;
-						var actFeat = feat(data[i].shapes[s]);
-						actFeat.setId('' + id + ':' + data[i].id + ":" + data[i].shapes[s].id);
-						source.addFeature(actFeat);
-					}
-				}
-				source.changed();
+				app.updateFeatures(id, data);
 			};
 			var failure = function(error) {
 				$('#ome_error_log').html(error);
 			};
 			app.sendRequest(params, success, failure);	
+		},
+		updateFeatures(id, data) {
+			var source = 
+				app.viewport.getLayers().item(
+					app.viewport.getLayers().getLength()-1).getSource();
+
+			source.clear();
+			app.images[id].rois = data;
+			var count = 0;
+			for (i in data) {
+				if (typeof(data[i]) != 'object' || typeof(data[i].shapes) != 'object') continue;
+				data[i].modified = false; // this is just a tmp way, checksum comparison at update would be stable
+				for (s in data[i].shapes) {
+					if (typeof(data[i].shapes[s].type) != 'string')
+						continue;
+					data[i].shapes[s].modified = false
+					var feat = app.roiRenderHandler[data[i].shapes[s].type];
+					if (typeof(feat) != 'function')
+						continue;
+					var actFeat = feat(data[i].shapes[s]);
+					actFeat.setId('' + id + ':' + data[i].id + ":" + data[i].shapes[s].id);
+					source.addFeature(actFeat);
+				}
+				count++;
+			}
+			app.images[id].roiCount = count;
+			source.changed();
 		},
 		findFeatureInImageData : function(combined_id) {
 			if (typeof(combined_id) != 'string')
@@ -420,7 +425,30 @@ var app = function() {
 			if (!(feature instanceof ol.Feature))
 				return;
 			var conFeat = app.convertFeature(feature);
-			//TODO: post to server
+			
+			
+			var params = {
+				url: 'addrois/' + imageId, method: 'POST', dataType: 'json',
+				 	contentType: 'application/json; charset=utf-8',
+				 	processData: false,
+				 	data: JSON.stringify(conFeat)};
+			var success = function(data) {
+				if (typeof(data) == 'Array' || typeof(data) == 'object') {
+					app.updateFeatures(imageId, data);
+					return;
+				}
+				var source = 
+					app.viewport.getLayers().item(
+						app.viewport.getLayers().getLength()-1).getSource();
+				source.removeFeature(feature);
+				source.changed();
+				$('#ome_error_log').html("Failed to store feature");
+			};
+			var failure = function(error) {
+				if (error && error.responseText) $('#ome_error_log').html(error.responseText);
+				else $('#ome_error_log').html(error);
+			};
+			app.sendRequest(params, success, failure);
 		}, updateRoi : function(feature) {
 			if (typeof(feature) != 'object')
 				return;
@@ -456,20 +484,22 @@ var app = function() {
 				y2 = y1;
 				y1 = tmp;
 			}
-
 			
 			var fill = feature.getStyle().getFill();
 			var fillColor = app.convertRgbaStringToHexRgbString(fill.getColor());
+			var fillColorAsInt = app.convertHexRgbStringToInteger(fillColor);
 			var stroke = feature.getStyle().getStroke();
 			var strokeColor = app.convertRgbaStringToHexRgbString(stroke.getColor());
+			var strokeColorAsInt = app.convertHexRgbStringToInteger(strokeColor);
 			
 			var ret = {id: -1, shapes: [ {
 				id: -1, theT: 0, theZ: 0, type: "Rectangle",
-				x : x1, y: y2, width: x2-x1, height: y2-y1,
+				x : x1, y: y1, width: x2-x1, height: y2-y1,
 				fillAlpha: fillColor ? fillColor.alpha : 1.0,
 				fillColor: fillColor ? fillColor.rgb : "#000000", 
 				strokeAlpha: strokeColor ? strokeColor.alpha : 1.0,
 				strokeColor: strokeColor ? strokeColor.rgb : "#000000", 
+				strokeColorAsInt: strokeColorAsInt, fillColorAsInt: fillColorAsInt,
 				strokeWidth: stroke.getWidth()
 			} ]};
 			
@@ -487,6 +517,15 @@ var app = function() {
 			window.onbeforeunload = function() {
 				app.close();
 			};
+		},
+		convertHexRgbStringToInteger : function(hexRgbAndAlpha) {
+			var alpha = ("00" + parseInt(hexRgbAndAlpha.alpha * 255 + 0.5).toString(16)).substr(-2);
+			var red = hexRgbAndAlpha.rgb.substring(1,3);
+			var green = hexRgbAndAlpha.rgb.substring(3,5);
+			var blue = hexRgbAndAlpha.rgb.substring(5,7);
+			var ret = 0x00000000;
+			ret |= parseInt("0x" + alpha + red + green + blue, 16);
+			return ret;
 		},
 		roiRenderHandler : {
 			"Rectangle" : function(shape) {
@@ -630,7 +669,10 @@ var app = function() {
 			var pureRgbaWithCommas = rgba.replace(/\(rgba|\(|rgba|rgb|\)/g, "");
 			var tok = pureRgbaWithCommas.split(",");
 			if (tok.length == 3 || tok.length == 4) {
-				var ret = {rgb: "#" + parseInt(tok[0]).toString(16) + parseInt(tok[1]).toString(16) + parseInt(tok[2]).toString(16), alpha: 1.0};
+				var ret = {rgb: "#" + 
+					("00" + parseInt(tok[0]).toString(16)).substr(-2) +
+					("00" + parseInt(tok[1]).toString(16)).substr(-2) +
+					("00" + parseInt(tok[2]).toString(16)).substr(-2), alpha: 1.0};
 				if (tok.length == 4) ret.alpha = parseFloat(tok[3]);
 				return ret;
 			}

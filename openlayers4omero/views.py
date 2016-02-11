@@ -3,7 +3,6 @@ from django.http.response import HttpResponse
 from django.http import JsonResponse
 
 from app import App
-from numpy import tile
 
 def index(request):
     return render(request, 'openlayers4omero/index.html')
@@ -59,7 +58,12 @@ def rois(request, imageId):
 def addRoi(request, imageId):
     if imageId is None:
         return JsonResponse({ "error" : "no image id supplied"})
-    return JsonResponse(App(request).addRoi(imageId), safe=False)
+    
+    ret = App(request).addRoi(imageId)
+    if ret is None:
+        return JsonResponse({ "error" : "adding roi failed!"})
+    
+    return JsonResponse(ret, safe=False)
     
 def renderResponse(img_data):
     if img_data is None:

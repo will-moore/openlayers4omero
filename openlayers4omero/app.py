@@ -1,14 +1,16 @@
 from omero.gateway import BlitzGateway
 from omeroweb.webgateway.marshal import shapeMarshal
-from omero.model import RoiI, RectangleI
+from omero.model import RoiI, RectangleI, LengthI
 from omero.rtypes import rint, rdouble
+from omero.model.enums import UnitsLength
+import json
 
 class App:
     _connection = None
     _request = None
     
     def __init__(self, request = None):
-        if request is not None and request.session is not None:
+        if request is not None:
             self._request = request
     
     def connect(self):
@@ -131,12 +133,31 @@ class App:
         img = self.getImage0(imageid)
         if img is None:
             return None
+
+        data = json.loads(self._request.body)
+        shapes = data['shapes']
+        x = y = l = z = t = -1
+        for s in shapes:
+            for k in s:
+                val = s[k]
+                if k == "x":
+                    x = int(val)
+                elif k == "y":
+                    y = int(val)
+                elif k == "width":
+                    l = int(val)
+                elif k == "theZ":
+                    z = int(val)
+                elif k == "theT":
+                    t = int(val)
+                elif k == "fillColorAsInt":
+                    fill = int(val)
+                elif k == "strokeColorAsInt":
+                    stroke = int(val)
+                elif k == "strokeWidth":
+                    strokeWidth = int(val)
         
-        x = int(self._request.POST.get("x", "-1"))
-        y = int(self._request.POST.get("y", "-1"))
-        l = int(self._request.POST.get("length", "-1"))
-        
-        if (x < 0 or y < 0 or l <= 0):
+        if (x < 0 or y < 0 or z < 0 or t < 0 or l <= 0):
             return None
         
         updateService = self._connection.getUpdateService()
@@ -147,11 +168,19 @@ class App:
         rect.y = rdouble(y)
         rect.width = rdouble(l)
         rect.height = rdouble(l)
-        rect.theZ = rint(0)
-        rect.theT = rint(0)
+        rect.theZ = rint(z)
+        rect.theT = rint(t)
+        rect.setFillColor(rint(fill))
+        strokeLen = LengthI()
+        strokeLen.setValue(strokeWidth)
+        strokeLen.setUnit(UnitsLength.PIXEL)
+        rect.setStrokeWidth(strokeLen)
+        rect.setStrokeColor(rint(stroke))
         roi.addShape(rect)
-
-        return updateService.saveAndReturnObject(roi)
+        
+        if (updateService.saveAndReturnObject(roi) is None):
+            return None
+        return self.get_rois(imageid) 
     def equals(self, one_float, second_float, tolerance = 0.00000001):
         if type(one_float) is not float or type(second_float) is not float:
             return False
