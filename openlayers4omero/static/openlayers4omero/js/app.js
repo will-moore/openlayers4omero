@@ -108,8 +108,9 @@ var app = function() {
 			}
 		},
 		initDrawMode : function() {
+			var source = new ol.source.Vector({});
 			app.viewport.addLayer(new ol.layer.Vector({
-				source : new ol.source.Vector({}),
+				source : source,
 				style: new ol.style.Style({
 					fill: new ol.style.Fill({
 						color: 'rgba(255, 255, 255, 0.2)'
@@ -118,17 +119,32 @@ var app = function() {
 						color: '#ffcc33',
 						width: 2
 					})
-				})}));
+			})}));
 
 			var select = new ol.interaction.Select();
 			var selFeats = select.getFeatures();
 			selFeats.on('add', function(event) {
 				var feature = event.element;
 				feature.on('change', function(ev) {
-					app.updateRoi(ev.target);
+					//app.updateRoi(ev.target);
 				});
 			});
 			app.viewport.addInteraction(select);
+
+			var dragBox = new ol.interaction.DragBox({
+				condition: ol.events.condition.platformModifierKeyOnly
+			});
+			app.viewport.addInteraction(dragBox);
+
+			dragBox.on('boxstart', function() {
+				select.getFeatures().clear();
+			});
+			dragBox.on('boxend', function() {
+				var extent = dragBox.getGeometry().getExtent();
+				source.forEachFeatureIntersectingExtent(extent, function(feature) {
+					select.getFeatures().push(feature);
+				});
+			});
 			
 			var translate = new ol.interaction.Translate({
 				features: select.getFeatures()
@@ -178,7 +194,8 @@ var app = function() {
 							else item.setActive(false);
 						}
 					} else if (item instanceof ol.interaction.Translate ||
-							item instanceof ol.interaction.Modify)  {
+							item instanceof ol.interaction.Modify ||
+							item instanceof ol.interaction.DragBox)  {
 						if (setActiveOrNot) item.setActive(false); // drawing and modifying mutually exclusive
 						else item.setActive(true);
 					}
@@ -196,7 +213,8 @@ var app = function() {
 					if (item instanceof ol.interaction.Draw || 
 							item instanceof ol.interaction.Modify || 
 							item instanceof ol.interaction.Select || 
-							item instanceof ol.interaction.Translate)
+							item instanceof ol.interaction.Translate ||
+							item instanceof ol.interaction.DragBox)
 						app.viewport.removeInteraction(item);
 				}
 			);
@@ -322,11 +340,36 @@ var app = function() {
 			var view = new ol.View(opt);
 						
 			var rotate = new ol.interaction.DragRotateAndZoom();
+			var over = new ol.control.OverviewMap();
+			
+			var handlers = {
+				 handleDownEvent: function(evt) {
+		    		  // TODO: if within overlaybox => return true
+		         	  console.log(evt.type);
+		         	  return true;
+		           },
+		           handleDragEvent: function(evt){
+		        	   if (!evt.dragging)
+		        		   return;
+		        	   if (!(evt.browserEvent.event_ instanceof MouseEvent))
+		        		   return;
+		        	   if (evt.browserEvent.event_.button & 1) evt.browserEvent.event_.which = 1;
+		        	   if (evt.browserEvent.event_.which == 0) {
+		        	   		this.handlingDownUpSequence = false;
+		        	   }
+			         	  console.log(evt.type);
+			           },
+		          handleUpEvent: function(evt) {
+		        	  console.log(evt.type);
+		        	  return false;
+		          }
+			};
+			over.ovmap_.addInteraction(new ol.interaction.Pointer(handlers));
 			
 			if (app.viewport == null) { 
 				app.viewport = new ol.Map({
 					logo: false,
-					controls: ol.control.defaults().extend([new ol.control.OverviewMap()]),
+					controls: ol.control.defaults().extend([over]),
 					interactions: ol.interaction.defaults().extend([rotate]),
 					layers: [new ol.layer.Tile({source: source, preload: Infinity})],
 				    target: 'ome_viewport',
