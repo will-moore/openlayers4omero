@@ -339,38 +339,22 @@ var app = function() {
 			};
 			var view = new ol.View(opt);
 						
-			var rotate = new ol.interaction.DragRotateAndZoom();
-			var over = new ol.control.OverviewMap();
-			
-			var handlers = {
-				 handleDownEvent: function(evt) {
-		    		  // TODO: if within overlaybox => return true
-		         	  console.log(evt.type);
-		         	  return true;
-		           },
-		           handleDragEvent: function(evt){
-		        	   if (!evt.dragging)
-		        		   return;
-		        	   if (!(evt.browserEvent.event_ instanceof MouseEvent))
-		        		   return;
-		        	   if (evt.browserEvent.event_.button & 1) evt.browserEvent.event_.which = 1;
-		        	   if (evt.browserEvent.event_.which == 0) {
-		        	   		this.handlingDownUpSequence = false;
-		        	   }
-			         	  console.log(evt.type);
-			           },
-		          handleUpEvent: function(evt) {
-		        	  console.log(evt.type);
-		        	  return false;
-		          }
+			var defaultInteractions = {
+					altShiftDragRotate : false,
+					doubleClickZoom : false,
+					dragPan : true,
+					pinchRotate : false,
+					pinchZoom : false,
+					keyboard : false,
+					mouseWheelZoom : true,
+					shiftDragZoom : false
 			};
-			over.ovmap_.addInteraction(new ol.interaction.Pointer(handlers));
-			
+					
 			if (app.viewport == null) { 
 				app.viewport = new ol.Map({
 					logo: false,
-					controls: ol.control.defaults().extend([over]),
-					interactions: ol.interaction.defaults().extend([rotate]),
+					controls: ol.control.defaults().extend([new ol.control.CustomOverviewMap()]),
+					interactions: ol.interaction.defaults(defaultInteractions),
 					layers: [new ol.layer.Tile({source: source, preload: Infinity})],
 				    target: 'ome_viewport',
 				    view: view
@@ -381,6 +365,7 @@ var app = function() {
 				app.viewport.addLayer(new ol.layer.Tile({source: source, preload: Infinity}));
 				app.viewport.setView(view);
 			}
+			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
 			app.initDrawMode();
 			
 			// if roi count > 0 send off request for image

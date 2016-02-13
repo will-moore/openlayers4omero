@@ -1,6 +1,6 @@
 // OpenLayers 3. See http://openlayers.org/
 // License: https://raw.githubusercontent.com/openlayers/ol3/master/LICENSE.md
-// Version: v3.13.0
+// Version: v3.13.1
 
 (function (root, factory) {
   if (typeof exports === "object") {
@@ -72467,6 +72467,16 @@ ol.source.Vector.prototype.handleFeatureChange_ = function(event) {
 
 
 /**
+ * @param {ol.Feature} feature Feature.
+ * @return {boolean} Feature is in source.
+ */
+ol.source.Vector.prototype.hasFeature = function(feature) {
+  var id = feature.getId();
+  return id ? id in this.idIndex_ : goog.getUid(feature) in this.undefIdIndex_;
+};
+
+
+/**
  * @return {boolean} Is empty.
  */
 ol.source.Vector.prototype.isEmpty = function() {
@@ -74249,9 +74259,9 @@ ol.source.UrlTile.prototype.setTileUrlFunction = function(tileUrlFunction) {
  * @api stable
  */
 ol.source.UrlTile.prototype.setUrl = function(url) {
-  this.urls = [url];
-  var urls = ol.TileUrlFunction.expandUrl(url);
-  this.setTileUrlFunction(this.fixedTileUrlFunction ||
+  var urls = this.urls = ol.TileUrlFunction.expandUrl(url);
+  this.setTileUrlFunction(this.fixedTileUrlFunction ?
+      this.fixedTileUrlFunction.bind(this) :
       ol.TileUrlFunction.createFromTemplates(urls, this.tileGrid));
 };
 
@@ -112748,7 +112758,8 @@ ol.interaction.Select.handleEvent = function(mapBrowserEvent) {
          * @param {ol.layer.Layer} layer Layer.
          */
         function(feature, layer) {
-          if (layer !== this.featureOverlay_) {
+          goog.asserts.assertInstanceof(feature, ol.Feature);
+          if (layer !== null) {
             if (add || toggle) {
               if (this.filter_(feature, layer) &&
                   !ol.array.includes(features.getArray(), feature) &&
@@ -112757,7 +112768,7 @@ ol.interaction.Select.handleEvent = function(mapBrowserEvent) {
                 this.addFeatureLayerAssociation_(feature, layer);
               }
             }
-          } else {
+          } else if (this.featureOverlay_.getSource().hasFeature(feature)) {
             if (remove || toggle) {
               deselected.push(feature);
               this.removeFeatureLayerAssociation_(feature);
