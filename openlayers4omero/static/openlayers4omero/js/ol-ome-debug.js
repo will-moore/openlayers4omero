@@ -371,11 +371,13 @@ ol.control.CustomOverviewMap = function(opt_options) {
   var render = options.render ? options.render : ol.control.CustomOverviewMap.render;
 
   this.isdragging = false;
-  goog.events.listen(this.ovmap_, ol.MapBrowserEvent.EventType.POINTERDOWN,
+  this.distToLowerLeft = [0,0];
+
+  goog.events.listen(this.boxOverlay_.getElement(), goog.events.EventType.MOUSEDOWN,
 		  ol.control.CustomOverviewMap.prototype.handleDownEvent, false, this);
-  goog.events.listen(this.ovmap_, ol.MapBrowserEvent.EventType.POINTERDRAG,
+  goog.events.listen(this.ovmap_.getViewport(), goog.events.EventType.MOUSEMOVE,
 		  ol.control.CustomOverviewMap.prototype.handleDragEvent, false, this);
-  goog.events.listen(this.ovmap_, ol.MapBrowserEvent.EventType.POINTERUP,
+  goog.events.listen(this.ovmap_.getViewport(), goog.events.EventType.MOUSEUP,
 		  ol.control.CustomOverviewMap.prototype.handleUpEvent, false, this);
 
   goog.base(this, {
@@ -389,51 +391,31 @@ goog.inherits(ol.control.CustomOverviewMap, ol.control.Control);
 ol.control.CustomOverviewMap.prototype.handleDownEvent = function(evt) {
    if (this.isdragging)
 	   return false;
-   
-   var bottomLeft = this.getOverviewMap().getPixelFromCoordinate(
-		   this.boxOverlay_.getPosition());
-   var dims = this.getOverviewBoxDimensions();
-   var topRight = [bottomLeft[0]+dims[0], bottomLeft[1]-dims[1]];
-   var pix = this.getOverviewMap().getPixelFromCoordinate(evt.coordinate);
-   if (pix[0] > bottomLeft[0] && pix[1] > topRight[1] &&
-		   pix[0] < topRight[0] && pix[1] < bottomLeft[1]) {
+
+   if (this.boxOverlay_.getElement() == evt.target) {
+	   this.distToLowerLeft = [evt.offsetX, evt.offsetY];
 	   this.isdragging = true;
 	   return true;
    }
 
-	  return false;
+   return false;
  };
  ol.control.CustomOverviewMap.prototype.handleDragEvent = function(evt) {
-	   
 	   if (!this.isdragging)
 		   return;
-	   if (!(evt.browserEvent.event_ instanceof MouseEvent))
-		   return;
-	   
-	   var oldCenter = this.getOverviewMap().getPixelFromCoordinate(evt.coordinate);
-	   var boxdims = this.getOverviewBoxDimensions();
-	   newCenter = this.getOverviewMap().getCoordinateFromPixel(oldCenter);
-	   
-	   if (evt.browserEvent.event_.button & 1) evt.browserEvent.event_.which = 1;
-	   if (evt.browserEvent.event_.which == 0) {
-	   		this.isdragging = false;
-		   this.dispatchEvent(ol.MapBrowserEvent.EventType.POINTERUP);
-		   this.getMap().getView().setCenter(newCenter);
-	   }
 
-	   var dimsOfOverview = this.getOverviewMapDimensions();
-	   if (oldCenter[0] < 0 || oldCenter[0] > dimsOfOverview[0] ||
-			   oldCenter[1] > dimsOfOverview[1] || oldCenter[1] < 0)
-			return;
+	   var oldBoxPosInPix = this.getOverviewMap().getPixelFromCoordinate(
+			this.boxOverlay_.getPosition());
+	   var newBoxPosInPix = [evt.offsetX, evt.offsetY];
+	   if (this.boxOverlay_.getElement() == evt.target){
+		   var offsets = [evt.offsetX, evt.offsetY];
+		   var deltaOff = [evt.offsetX - this.distToLowerLeft[0], evt.offsetY - this.distToLowerLeft[1]];
+		   newBoxPosInPix = [oldBoxPosInPix[0] + deltaOff[0], oldBoxPosInPix[1] + deltaOff[1]];
+	   } else 
+		   newBoxPosInPix = [evt.offsetX-this.distToLowerLeft[0], evt.offsetY+this.distToLowerLeft[1]];
 	   
 	   this.boxOverlay_.setPosition(
-			   this.getOverviewMap().getCoordinateFromPixel(
-					   [oldCenter[0]-boxdims[0]/2,oldCenter[1]+boxdims[1]/2]));
-	   if (newCenter[0] < 0 || newCenter[1] > 0)
-		   return;
-
-	   this.getMap().getView().setCenter(newCenter);
-	   
+			   this.getOverviewMap().getCoordinateFromPixel(newBoxPosInPix));
 };
 
 ol.control.CustomOverviewMap.prototype.getOverviewBoxDimensions = function(){
@@ -443,18 +425,26 @@ ol.control.CustomOverviewMap.prototype.getOverviewBoxDimensions = function(){
 	}
 	return null;
 };
-
-ol.control.CustomOverviewMap.prototype.getOverviewMapDimensions = function() {
-	if (this.getOverviewMap()) {
-		var el = this.getOverviewMap().getViewport();
-		return [ol.dom.outerWidth(el), ol.dom.outerHeight(el)];
-	}
-	return null;
-};
-
 ol.control.CustomOverviewMap.prototype.handleUpEvent = function(evt) {
-	   this.isdragging = false;
-
+	if (this.isdragging) {
+		this.isdragging = false;
+		this.distToLowerLeft = [0,0];
+	
+		var oldBoxPosInPix = this.getOverviewMap().getPixelFromCoordinate(
+			this.boxOverlay_.getPosition());
+		this.getMap().getView().setCenter(
+			this.getOverviewMap().getCoordinateFromPixel(
+					[oldBoxPosInPix[0] + evt.offsetX,oldBoxPosInPix[1]-evt.offsetY]));
+	
+		return false;
+	}
+	
+    if (this.boxOverlay_.getElement() == evt.target) return false;
+  
+	var boxDims = this.getOverviewBoxDimensions();
+		this.getMap().getView().setCenter(
+			this.getOverviewMap().getCoordinateFromPixel(
+					[evt.offsetX,evt.offsetY]));
 	return false;
 };
  
