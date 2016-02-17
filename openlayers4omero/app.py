@@ -7,45 +7,11 @@ import json
 
 class App:
     _connection = None
-    _request = None
     
-    def __init__(self, request = None):
-        if request is not None:
-            self._request = request
-    
-    def connect(self):
-        try:
-            if self._connection is None:
-                self._connection = BlitzGateway('root', 'admin', host='localhost', port=4064)
-            
-            if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is not None:
-                if self._connection is not None and not self._connection.connect(sUuid=self._request.session['sessionId']):
-                    if not self._connection.isConnected() and not self._connection.connect():
-                        return False
-            else:
-                if self._connection is not None and not self._connection.connect():
-                    return False  
-        except:
-            self._connection = None
-            return False
-        
-        if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is None:
-            self._request.session['sessionId'] = self._connection._getSessionId()
-
-        return True
-    
-    def isConnected(self):
-        if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is not None:
-            if self.connect(): return True
-        return False
-    
-    def disconnect(self):
-        if self._request is not None and self._request.session is not None and self._request.session.get('sessionId') is not None:
-            if self.connect():
-                self._connection._closeSession()
-        
-        self._connection = None
-        self._request.session['sessionId'] = None
+    def __init__(self, conn=None):
+        if conn is None:
+            raise Exception("Not Connected")
+        self._connection = conn
     
     def convertDictToArray(self, dic):
         if dic is None or type(dic) is not dict:
@@ -60,9 +26,6 @@ class App:
         return ret
     
     def listDatasets(self):
-        if self._connection is None or not self._connection.isConnected():
-            if not self.connect(): return { "error" : "Not Connected"}
-        
         datasets = self._connection.getObjects('Dataset')
         ret = []
         for dataset in datasets:
@@ -87,9 +50,6 @@ class App:
         return {"datasets": ret}
     
     def getImage0(self, imageid):
-        if self._connection is None or not self._connection.isConnected():
-            if not self.connect(): return None
-            
         try:
             img = self._connection.getObject("Image", imageid)
             return img
@@ -98,9 +58,6 @@ class App:
             return None
 
     def get_rois(self, imageId):
-        if self._connection is None or not self._connection.isConnected():
-            if not self.connect(): return None
-
         try:
             rois = []
             roiService = self._connection.getRoiService()
@@ -129,12 +86,12 @@ class App:
             print e
             return None
 
-    def addRoi(self, imageid ):
+    def addRoi(self, request, imageid):
         img = self.getImage0(imageid)
         if img is None:
             return None
 
-        data = json.loads(self._request.body)
+        data = json.loads(request.body)
         shapes = data['shapes']
         x = y = l = z = t = -1
         for s in shapes:

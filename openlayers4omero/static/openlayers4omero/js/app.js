@@ -3,66 +3,30 @@ var app = function() {
 		images : {},
 		viewport : null,
 		init : function() {
-			app.registerListeners();
-		},
-		sendCleanRequest : function() {
-			var params = {url: 'clean', dataType: 'json'};
-			var success = function(data) {
-				if (data && data.disconnected) {
-					$('#ome_session_id').html("disconnected");
-				}
-			};
-			var failure = function(error) {
-				$('#ome_error_log').html(error);
-			};
-			app.sendRequest(params, success, failure);
+			app.fetchDatasets();
 		},
 		sendRequest : function(params, success, failure) {
 			if (params)
 				$.ajax(params).success(
 					function(data) {
-						$('#ome_error_log').html("");
 						success(data);
 					}).error(failure);
-		},
-		connect : function() {
-			var params = {url: 'connect', dataType: 'json'};
-			var success = function(data) {
-				if (data && data.sessionId) {
-					$('#ome_session_id').html(data.sessionId);
-					$('#ome_connect').val("Disconnect");
-					app.fetchDatasets();
-				} else if (data.error)
-					$('#ome_error_log').html(data.error);
-				else if (data)
-					$('#ome_error_log').html(data);
-				else
-					$('#ome_error_log').html("error connecting");
-			};
-			var failure = function(error) {
-				$('#ome_error_log').html(error);
-			};
-			app.sendRequest(params, success, failure);	
-		},
-		close : function() {
-			app.sendCleanRequest();
-			$('#ome_connect').val("Connect");
-			app.clearImageList();
 		},
 		fetchDatasets : function() {
 			var params = {url: 'datasets', dataType: 'json'};
 			var success = function(data) {
 				if (data && data.datasets && data.datasets.length == 0) {
-					$('#ome_error_log').html("No datasets found");
-				} else if (data && data.datasets)
-					$('#ome_error_log').html("" + data.datasets.length + " datasets found" );
+					console.error("No datasets found");
+				} else if (data && data.datasets) {
+					console.info("" + data.datasets.length + " datasets found" );
+					$("#annoying").remove();
 					app.populateImageList(data.datasets);
+				}
 			};
 			var failure = function(error) {
-				$('#ome_error_log').html(error);
-				app.clearImageList();
+				console.error(error);
 			};
-			$('#ome_error_log').html('querying image list ...');
+			$("#ome_viewport").html('<h2 id="annoying">Loading Image List...</h2>');
 			app.sendRequest(params, success, failure);	
 		},
 		populateImageList : function(data) {
@@ -88,24 +52,6 @@ var app = function() {
 			$('#ome_images').val(selected).change();
 			$('#ome_images').show();
 			$('#ome_thumbnail').show();
-		},
-		clearImageList : function() {
-			app.images = {};
-			$('#ome_images').off();
-			$('#ome_images').attr("size", 1);
-			$('#ome_images option').each(function(index, option) {
-			    $(option).remove();
-			});
-			$('#ome_thumbnail').attr("src", "");
-			$('#ome_thumbnail').hide();
-			$('#ome_images').hide();
-			if (app.viewport != null) {
-				app.resetPlaneTimeChannelControls();
-				app.resetDrawMode();
-				app.viewport.getLayers().clear();
-				app.viewport = null;
-				$('#ome_viewport').html("");
-			}
 		},
 		initDrawMode : function() {
 			var source = new ol.source.Vector({});
@@ -324,7 +270,6 @@ var app = function() {
 				plane: planes > 1 ? parseInt($('#ome_z_index').val()) : 0,
 				time: times > 1 ? parseInt($('#ome_t_index').val()) : 0,
 				channel: channels > 1 ? parseInt($('#ome_c_index').val()) : 0,
-				crossOrigin: 'anonymous',
 				resolutions: zoom > 1 ? selDs.zoomLevelScaling : [1]
 			});
 			
@@ -332,11 +277,15 @@ var app = function() {
 					projection: proj,
 					center: imgCenter,
 					extent: [0, -height, width, 0],
-					resolution:  zoom > 1 ? source.getResolutions()[0] : 1,
-					//zoom: zoom > 1 ? 0 : 1,
-					minZoom: 0,
-					maxZoom: zoom > 1 ? (zoom * 3)-1 : 5
 			};
+			if (zoom > 1) {
+				opt.resolution = source.getResolutions()[0];
+				opt.resolutions = source.getResolutions(); 
+			} else {
+				opt.zoom = 0;
+				opt.minZoom = 1;
+				opt.maxZoom = 5;
+			}
 			var view = new ol.View(opt);
 						
 			var defaultInteractions = {
@@ -378,12 +327,12 @@ var app = function() {
 			var params = {url: 'rois/' + id, dataType: 'json'};
 			var success = function(data) {
 				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
-					$('#ome_error_log').html("roi request gave no array back");
+					console.error("roi request gave no array back");
 
 				app.updateFeatures(id, data);
 			};
 			var failure = function(error) {
-				$('#ome_error_log').html(error);
+				console.error(error);
 			};
 			app.sendRequest(params, success, failure);	
 		},
@@ -470,11 +419,11 @@ var app = function() {
 						app.viewport.getLayers().getLength()-1).getSource();
 				source.removeFeature(feature);
 				source.changed();
-				$('#ome_error_log').html("Failed to store feature");
+				console.error("Failed to store feature");
 			};
 			var failure = function(error) {
-				if (error && error.responseText) $('#ome_error_log').html(error.responseText);
-				else $('#ome_error_log').html(error);
+				if (error && error.responseText) console.error(error.responseText);
+				else console.error(error);
 			};
 			app.sendRequest(params, success, failure);
 		}, updateRoi : function(feature) {
@@ -532,19 +481,6 @@ var app = function() {
 			} ]};
 			
 			return ret;
-		},
-		registerListeners : function() {
-			$('#ome_connect_form').submit(
-				function(event) {
-					event.preventDefault();
-					if ($('#ome_connect').val() == 'Connect')
-						app.connect();
-					else if ($('#ome_connect').val() == 'Disconnect')
-						app.close();
-				});
-			window.onbeforeunload = function() {
-				app.close();
-			};
 		},
 		convertHexRgbStringToInteger : function(hexRgbAndAlpha) {
 			var alpha = ("00" + parseInt(hexRgbAndAlpha.alpha * 255 + 0.5).toString(16)).substr(-2);

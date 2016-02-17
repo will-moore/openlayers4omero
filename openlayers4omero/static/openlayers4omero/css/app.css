@@ -10,13 +10,8 @@ html, body {
 	float: right;
 }
 
-#header {
-	height: 5%;
-	width: 100%	
-}
-
 #main {
-	height: 92%;
+	height: 96%;
 	width: 100%;
 }
 
@@ -28,10 +23,6 @@ html, body {
 #main .view {
 	width: 85%;
 	height: 100%;
-}
-
-#ome_session_id {
-	padding-left: 10px;
 }
 
 #ome_images {
@@ -48,15 +39,6 @@ html, body {
 	height: 10%;
 	max-height: 10%;
 	display: none;
-}
-
-#ome_error_log {
-	font-style: italic;
-	padding-left: 10px;
-}
-
-fieldset {
-	border: none;
 }
 
 #draw_or_view {
