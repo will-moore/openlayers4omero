@@ -2,6 +2,7 @@ var app = function() {
 	return {
 		images : {},
 		viewport : null,
+		defaultResolutions : [2.25, 2.0, 1.75, 1.5,1.25,1.0,0.75,0.5, 0.25],
 		init : function() {
 			app.fetchDatasets();
 		},
@@ -228,6 +229,53 @@ var app = function() {
 			var selected = $("#ome_images option:selected").val();
 			$('#ome_thumbnail').attr("src", "thumbnail/" + selected)
 		},
+		prepareResolutionsArray : function(givenRes) {
+			// prepare resolutions for "single" images vs tiled/pyramids
+			if (givenRes == null)
+				return app.defaultResolutions;
+	
+			var defResLen = app.defaultResolutions.length;
+	
+			if (givenRes.length >= defResLen)
+				return givenRes;
+			
+			var oneToOneIndex = 0;
+			for (i in  givenRes)
+				if (givenRes[i] == 1.0) {
+					oneToOneIndex = i;
+					break;
+				}
+			if (oneToOneIndex >= defResLen-1)
+				return givenRes;
+			
+			var defResOneToOne = 0;
+			for (i in  app.defaultResolutions)
+				if (app.defaultResolutions[i] == 1.0) {
+					defResOneToOne = i;
+					break;
+				}
+			
+			var newRes = [];
+			// we fill up to achieve a decent number of zooms
+			var fillUpTo = oneToOneIndex;
+			if (oneToOneIndex < defResOneToOne) {
+				fillUpTo = defResOneToOne - oneToOneIndex;
+				for (var i=0;i<fillUpTo;i++)
+					newRes.push(givenRes[0] * (1+((fillUpTo-i) * 0.25)));
+				for (var i=0;i<oneToOneIndex;i++) {
+					fillUpTo++;
+					newRes.push(givenRes[i]);
+				}
+			} else 
+				for (var i=0;i<fillUpTo;i++)
+					newRes.push(givenRes[i]);
+			
+			// fill rest
+			for (var i=fillUpTo;i<defResLen;i++)
+				newRes.push(1 - ((i-fillUpTo)*0.25));
+			
+			return newRes;
+		},
 		workWithImage : function(event) {
 			var selected = $("#ome_images option:selected").val();
 			
@@ -277,15 +325,10 @@ var app = function() {
 					projection: proj,
 					center: imgCenter,
 					extent: [0, -height, width, 0],
+					resolutions : app.prepareResolutionsArray(selDs.zoomLevelScaling),
+					resolution : zoom > 1 ? selDs.zoomLevelScaling[0] : 1
 			};
-			if (zoom > 1) {
-				opt.resolution = source.getResolutions()[0];
-				opt.resolutions = source.getResolutions(); 
-			} else {
-				opt.zoom = 0;
-				opt.minZoom = 1;
-				opt.maxZoom = 5;
-			}
+
 			var view = new ol.View(opt);
 						
 			var defaultInteractions = {
