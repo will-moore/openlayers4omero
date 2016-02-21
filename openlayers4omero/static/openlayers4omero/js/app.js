@@ -19,7 +19,6 @@ var app = function() {
 				if (data && data.datasets && data.datasets.length == 0) {
 					console.error("No datasets found");
 				} else if (data && data.datasets) {
-					console.info("" + data.datasets.length + " datasets found" );
 					$("#annoying").remove();
 					app.populateImageList(data.datasets);
 				}
@@ -54,19 +53,10 @@ var app = function() {
 			$('#ome_images').show();
 			$('#ome_thumbnail').show();
 		},
-		initDrawMode : function() {
+		initModifyMode : function() {
 			var source = new ol.source.Vector({});
 			app.viewport.addLayer(new ol.layer.Vector({
-				source : source,
-				style: new ol.style.Style({
-					fill: new ol.style.Fill({
-						color: 'rgba(255, 255, 255, 0.2)'
-					}),
-					stroke: new ol.style.Stroke({
-						color: '#ffcc33',
-						width: 2
-					})
-			})}));
+				source : source}));
 
 			var select = new ol.interaction.Select();
 			var selFeats = select.getFeatures();
@@ -98,34 +88,10 @@ var app = function() {
 			});
 			app.viewport.addInteraction(translate);
 			
-			var modify = new ol.interaction.Modify({
+			var modify = new ome.interaction.Modify({
 				features: select.getFeatures()
 			});
 			app.viewport.addInteraction(modify);
-
-			var draw = new ol.interaction.Draw({
-				source: app.viewport.getLayers().item(
-						app.viewport.getLayers().getLength()-1).getSource(),
-				type: 'Circle',
-				geometryFunction: ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4)
-			});
-			draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
-				event.feature.setStyle(
-					app.viewport.getLayers().item(app.viewport.getLayers().getLength()-1).getStyle());
-				app.addRoi(event.feature,
-					app.viewport.getLayers().item(0).getSource().getImageId());
-			});
-			app.viewport.addInteraction(draw);
-			app.activateDraw(false);
-			
-			$('#draw_or_view').val("view");
-			$('#draw_or_view').show();
-			$('#draw_or_view').on("change", 
-				function(event) {
-					if ($('#draw_or_view').val() == 'draw') app.activateDraw(true);
-					else app.activateDraw(false);
-				}
-			);
 		},
 		activateDraw : function(flag, remove) {
 			var setActiveOrNot = false;
@@ -150,9 +116,6 @@ var app = function() {
 			);
 		},
 		resetDrawMode : function() {
-			$('#draw_or_view').val("view");
-			$('#draw_or_view').off(); 
-			$('#draw_or_view').hide();
 			app.activateDraw(false, true);
 			
 			app.viewport.getInteractions().forEach(
@@ -310,7 +273,7 @@ var app = function() {
 				extent: [0, 0, width, height]
 			});
 
-			var source = new ol.source.Omero({
+			var source = new ome.source.Omero({
 				url: 'image',
 				image: selDs.id,
 				sizeX: width,
@@ -331,21 +294,32 @@ var app = function() {
 
 			var view = new ol.View(opt);
 						
+			var defaultControls = {
+				zoom : true,
+				rotate: true,
+				attributrion: false
+			};
+			var addControls = [
+			    new ol.control.CustomOverviewMap(),
+			    new ome.control.Draw(),
+				new ol.control.FullScreen()];
+				//new ol.control.ScaleLine()];
+			
 			var defaultInteractions = {
-					altShiftDragRotate : false,
-					doubleClickZoom : false,
-					dragPan : true,
-					pinchRotate : false,
-					pinchZoom : false,
-					keyboard : false,
-					mouseWheelZoom : true,
-					shiftDragZoom : false
+				altShiftDragRotate : false,
+				doubleClickZoom : false,
+				dragPan : true,
+				pinchRotate : false,
+				pinchZoom : false,
+				keyboard : false,
+				mouseWheelZoom : true,
+				shiftDragZoom : false
 			};
 					
 			if (app.viewport == null) { 
 				app.viewport = new ol.Map({
 					logo: false,
-					controls: ol.control.defaults().extend([new ol.control.CustomOverviewMap()]),
+					controls: ol.control.defaults(defaultControls).extend(addControls),
 					interactions: ol.interaction.defaults(defaultInteractions),
 					layers: [new ol.layer.Tile({source: source, preload: Infinity})],
 				    target: 'ome_viewport',
@@ -358,7 +332,7 @@ var app = function() {
 				app.viewport.setView(view);
 			}
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
-			app.initDrawMode();
+			app.initModifyMode();
 			
 			// if roi count > 0 send off request for image
 			if (selDs.roiCount > 0) {
@@ -544,7 +518,7 @@ var app = function() {
 						 [shape.x, -shape.y-shape.height],
 						 [shape.x, -shape.y]
 						]],ol.geom.GeometryLayout.XY);
-				
+				geometry.type = "Rectangle";
 				var feat = new ol.Feature({geometry : geometry});
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
@@ -565,8 +539,10 @@ var app = function() {
 					var v = shape.points[c].toLowerCase();
 					if (v == 'm' || v == 'l' || v == 'z') {
 						if (start < 0) {
-							if (v == 'z')
+							if (v == 'z') {
+								coords.push(coords[0]);
 								break;
+							}
 							start = c+1;
 							while (len-c > 0 && shape.points[++c] == ' ')
 								start++;

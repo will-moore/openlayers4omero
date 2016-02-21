@@ -1,4 +1,4 @@
-goog.provide('ol.source.Omero');
+goog.provide('ome.source.Omero');
 
 goog.require('goog.asserts');
 goog.require('ol');
@@ -11,7 +11,7 @@ goog.require('ol.proj');
 goog.require('ol.source.TileImage');
 goog.require('ol.tilegrid.TileGrid');
 
-ol.source.Omero = function(opts) {
+ome.source.Omero = function(opts) {
 	this.imageId_ = opts.image || 0;
 	this.plane_ = opts.plane || 0;
 	this.time_ =  opts.time || 0;
@@ -57,219 +57,504 @@ ol.source.Omero = function(opts) {
 	});
 
 };
-goog.inherits(ol.source.Omero, ol.source.TileImage);
+goog.inherits(ome.source.Omero, ol.source.TileImage);
 
-ol.source.Omero.prototype.getImageId = function() {
+ome.source.Omero.prototype.getImageId = function() {
 	  return this.imageId_;
 }
 
-ol.source.Omero.prototype.setImageId = function(value) {
+ome.source.Omero.prototype.setImageId = function(value) {
 	  this.imageId_ = value;
 }
 
-ol.source.Omero.prototype.getPlane = function() {
+ome.source.Omero.prototype.getPlane = function() {
 	  return this.plane_;
 }
 
-ol.source.Omero.prototype.setPlane = function(value) {
+ome.source.Omero.prototype.setPlane = function(value) {
 	  this.plane_ = value;
 }
 
-ol.source.Omero.prototype.getTime = function() {
+ome.source.Omero.prototype.getTime = function() {
 	  return this.time_;
 }
 
-ol.source.Omero.prototype.setTime = function(value) {
+ome.source.Omero.prototype.setTime = function(value) {
 	  this.time_ = value;
 }
 
-ol.source.Omero.prototype.getChannel = function() {
+ome.source.Omero.prototype.getChannel = function() {
 	  return this.channel_;
 }
 
-ol.source.Omero.prototype.setChannel = function(value) {
+ome.source.Omero.prototype.setChannel = function(value) {
 	  this.channel_ = value;
 }
 
-goog.exportProperty(
-	    ol.source.Omero.prototype,
-	    'setRenderReprojectionEdges',
-    ol.source.Omero.prototype.setRenderReprojectionEdges);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setTileGridForProjection',
-    ol.source.Omero.prototype.setTileGridForProjection);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getTileLoadFunction',
-    ol.source.Omero.prototype.getTileLoadFunction);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getTileUrlFunction',
-    ol.source.Omero.prototype.getTileUrlFunction);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getUrls',
-    ol.source.Omero.prototype.getUrls);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setTileLoadFunction',
-    ol.source.Omero.prototype.setTileLoadFunction);
+goog.provide('ome.control.Draw');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setTileUrlFunction',
-    ol.source.Omero.prototype.setTileUrlFunction);
+goog.require('goog.dom');
+goog.require('goog.events');
+goog.require('goog.events.EventType');
+goog.require('ol.animation');
+goog.require('ol.control.Control');
+goog.require('ol.css');
+goog.require('ol.easing');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setUrl',
-    ol.source.Omero.prototype.setUrl);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setUrls',
-    ol.source.Omero.prototype.setUrls);
+ome.control.Draw = function(opt_options) {
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getTileGrid',
-    ol.source.Omero.prototype.getTileGrid);
+  var options = opt_options ? opt_options : {};
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getAttributions',
-    ol.source.Omero.prototype.getAttributions);
+  var className = options.className ? options.className : 'ol-draw';
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getLogo',
-    ol.source.Omero.prototype.getLogo);
+  var rectElement = goog.dom.createDom('BUTTON', {
+    'class': className + '-rectangle',
+    'type' : 'button',
+    'title': 'Draw Rectangle'
+  }, '[R]');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getProjection',
-    ol.source.Omero.prototype.getProjection);
+  goog.events.listen(rectElement,
+      goog.events.EventType.CLICK, goog.partial(
+          ome.control.Draw.prototype.drawRectangle_), false, this);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getState',
-    ol.source.Omero.prototype.getState);
+  var polyElement = goog.dom.createDom('BUTTON', {
+    'class': className + '-polygon',
+    'type' : 'button',
+    'title': 'Draw Polygon'
+  }, '[G]');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setAttributions',
-    ol.source.Omero.prototype.setAttributions);
+  goog.events.listen(polyElement,
+      goog.events.EventType.CLICK, goog.partial(
+          ome.control.Draw.prototype.drawPolygon_), false, this);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'get',
-    ol.source.Omero.prototype.get);
+  var lineElement = goog.dom.createDom('BUTTON', {
+	    'class': className + '-line',
+	    'type' : 'button',
+	    'title': 'Draw Line'
+	  }, '[L]');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getKeys',
-    ol.source.Omero.prototype.getKeys);
+  goog.events.listen(lineElement,
+      goog.events.EventType.CLICK, goog.partial(
+          ome.control.Draw.prototype.drawLine_), false, this);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getProperties',
-    ol.source.Omero.prototype.getProperties);
+  var pointElement = goog.dom.createDom('BUTTON', {
+	    'class': className + '-point',
+	    'type' : 'button',
+	    'title': 'Draw Point'
+	  }, '[P]');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'set',
-    ol.source.Omero.prototype.set);
+goog.events.listen(pointElement,
+    goog.events.EventType.CLICK, goog.partial(
+        ome.control.Draw.prototype.drawPoint_), false, this);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'setProperties',
-    ol.source.Omero.prototype.setProperties);
+var circleElement = goog.dom.createDom('BUTTON', {
+    'class': className + '-circle',
+    'type' : 'button',
+    'title': 'Draw Circle'
+  }, '[C]');
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'unset',
-    ol.source.Omero.prototype.unset);
+goog.events.listen(circleElement,
+goog.events.EventType.CLICK, goog.partial(
+    ome.control.Draw.prototype.drawCircle_), false, this);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'changed',
-    ol.source.Omero.prototype.changed);
+  var cssClasses = className + ' ' + ol.css.CLASS_UNSELECTABLE + ' ' +
+      ol.css.CLASS_CONTROL;
+  var element = goog.dom.createDom('DIV', cssClasses,
+		  rectElement, polyElement, lineElement, pointElement, circleElement);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'dispatchEvent',
-    ol.source.Omero.prototype.dispatchEvent);
+  goog.base(this, {
+    element: element,
+    target: options.target
+  });
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'getRevision',
-    ol.source.Omero.prototype.getRevision);
+};
+goog.inherits(ome.control.Draw, ol.control.Control);
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'on',
-    ol.source.Omero.prototype.on);
+ome.control.Draw.prototype.drawRectangle_ = function(event) {
+	app.activateDraw(false, true);
+	var draw = new ol.interaction.Draw({
+		source: app.viewport.getLayers().item(
+				app.viewport.getLayers().getLength()-1).getSource(),
+		type: 'Circle',
+		geometryFunction: ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4)
+	});
+	this.getMap().addInteraction(draw);
+	app.activateDraw(true);
+	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+		if (event.feature)
+			event.feature.getGeometry().type = "Rectangle";
+		app.activateDraw(false, true);
+	});
+};
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'once',
-    ol.source.Omero.prototype.once);
+ome.control.Draw.prototype.drawPolygon_ = function(event) {
+	app.activateDraw(false, true);
+	var draw = new ol.interaction.Draw({
+		source: app.viewport.getLayers().item(
+				app.viewport.getLayers().getLength()-1).getSource(),
+		type: 'Polygon',
+	});
+	this.getMap().addInteraction(draw);
+	app.activateDraw(true);
+	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+		app.activateDraw(false, true);
+	});
+};
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'un',
-    ol.source.Omero.prototype.un);
+ome.control.Draw.prototype.drawLine_ = function(event) {
+	app.activateDraw(false, true);
+	var draw = new ol.interaction.Draw({
+		source: app.viewport.getLayers().item(
+				app.viewport.getLayers().getLength()-1).getSource(),
+		type: 'LineString',
+	});
+	this.getMap().addInteraction(draw);
+	app.activateDraw(true);
+	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+		app.activateDraw(false, true);
+	});
+};
 
-goog.exportProperty(
-    ol.source.Omero.prototype,
-    'unByKey',
-    ol.source.Omero.prototype.unByKey);
+ome.control.Draw.prototype.drawPoint_ = function(event) {
+	app.activateDraw(false, true);
+	var draw = new ol.interaction.Draw({
+		source: app.viewport.getLayers().item(
+				app.viewport.getLayers().getLength()-1).getSource(),
+		type: 'Point',
+	});
+	this.getMap().addInteraction(draw);
+	app.activateDraw(true);
+	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+		app.activateDraw(false, true);
+	});
+};
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'getPlane',
-	ol.source.Omero.prototype.getPlane);
+ome.control.Draw.prototype.drawCircle_ = function(event) {
+	var draw = new ol.interaction.Draw({
+		source: app.viewport.getLayers().item(
+				app.viewport.getLayers().getLength()-1).getSource(),
+		type: 'Circle',
+	});
+	this.getMap().addInteraction(draw);
+	app.activateDraw(true);
+	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+		app.activateDraw(false, true);
+	});
+};
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'setPlane',
-	ol.source.Omero.prototype.setPlane);
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'getTime',
-	ol.source.Omero.prototype.getTime);
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'setTime',
-	ol.source.Omero.prototype.setTime);
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'getChannel',
-	ol.source.Omero.prototype.getChannel);
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'setChannel',
-	ol.source.Omero.prototype.setChannel);
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'getImageId',
-	ol.source.Omero.prototype.getImageId);
+goog.provide('ome.interaction.Modify');
 
-goog.exportProperty(
-	ol.source.Omero.prototype,
-	'setImageId',
-	ol.source.Omero.prototype.setImageId);
+goog.require('goog.array');
+goog.require('goog.asserts');
+goog.require('goog.events');
+goog.require('goog.events.Event');
+goog.require('goog.events.EventType');
+goog.require('goog.functions');
+goog.require('ol');
+goog.require('ol.Collection');
+goog.require('ol.CollectionEventType');
+goog.require('ol.Feature');
+goog.require('ol.MapBrowserEvent.EventType');
+goog.require('ol.MapBrowserPointerEvent');
+goog.require('ol.ViewHint');
+goog.require('ol.coordinate');
+goog.require('ol.events.condition');
+goog.require('ol.extent');
+goog.require('ol.geom.GeometryType');
+goog.require('ol.geom.LineString');
+goog.require('ol.geom.MultiLineString');
+goog.require('ol.geom.MultiPoint');
+goog.require('ol.geom.MultiPolygon');
+goog.require('ol.geom.Point');
+goog.require('ol.geom.Polygon');
+goog.require('ol.interaction.Pointer');
+goog.require('ol.layer.Vector');
+goog.require('ol.source.Vector');
+goog.require('ol.structs.RBush');
+
+
+ome.interaction.Modify = function(options) {
+	  goog.base(this, options);
+	  this.handleDownEvent_ = ome.interaction.Modify.handleDownEvent_;
+	  this.handleDragEvent_ = ome.interaction.Modify.handleDragEvent_;
+	  this.handleEvent = ome.interaction.Modify.handleEvent;
+	  this.handleUpEvent_ = ome.interaction.Modify.handleUpEvent_;
+};
+goog.inherits(ome.interaction.Modify, ol.interaction.Modify);
+
+
+ome.interaction.Modify.handleDownEvent_ = function(evt) {
+  this.handlePointerAtPixel_(evt.pixel, evt.map);
+  this.dragSegments_ = [];
+  this.modified_ = false;
+  var vertexFeature = this.vertexFeature_;
+  if (vertexFeature) {
+    var insertVertices = [];
+    var geometry = /** @type {ol.geom.Point} */ (vertexFeature.getGeometry());
+    var vertex = geometry.getCoordinates();
+    var vertexExtent = ol.extent.boundingExtent([vertex]);
+    var segmentDataMatches = this.rBush_.getInExtent(vertexExtent);
+    var componentSegments = {};
+    segmentDataMatches.sort(ol.interaction.Modify.compareIndexes_);
+    for (var i = 0, ii = segmentDataMatches.length; i < ii; ++i) {
+      var segmentDataMatch = segmentDataMatches[i];
+      var segment = segmentDataMatch.segment;
+      var uid = goog.getUid(segmentDataMatch.feature);
+      var depth = segmentDataMatch.depth;
+      if (depth) {
+        uid += '-' + depth.join('-'); // separate feature components
+      }
+      if (!componentSegments[uid]) {
+        componentSegments[uid] = new Array(2);
+      }
+      if (ol.coordinate.equals(segment[0], vertex) &&
+          !componentSegments[uid][0]) {
+        this.dragSegments_.push([segmentDataMatch, 0]);
+        componentSegments[uid][0] = segmentDataMatch;
+      } else if (ol.coordinate.equals(segment[1], vertex) &&
+          !componentSegments[uid][1]) {
+
+        // prevent dragging closed linestrings by the connecting node
+    	var type = segmentDataMatch.geometry.type || segmentDataMatch.geometry.getType();
+        if ((type ===
+            ol.geom.GeometryType.LINE_STRING ||
+            type ===
+            ol.geom.GeometryType.MULTI_LINE_STRING ||
+            type === 'Rectangle') &&
+            componentSegments[uid][0] &&
+            componentSegments[uid][0].index === 0) {
+          continue;
+        }
+
+        this.dragSegments_.push([segmentDataMatch, 1]);
+        componentSegments[uid][1] = segmentDataMatch;
+      } else if (goog.getUid(segment) in this.vertexSegments_ &&
+          (!componentSegments[uid][0] && !componentSegments[uid][1])) {
+        insertVertices.push([segmentDataMatch, vertex]);
+      }
+    }
+    if (insertVertices.length) {
+      this.willModifyFeatures_(evt);
+    }
+    for (var j = insertVertices.length - 1; j >= 0; --j) {
+      this.insertVertex_.apply(this, insertVertices[j]);
+    }
+  }
+  return !!this.vertexFeature_;
+};
+
+
+ome.interaction.Modify.handleDragEvent_ = function(evt) {
+  this.ignoreNextSingleClick_ = false;
+  this.willModifyFeatures_(evt);
+
+  var vertex = evt.coordinate;
+  for (var i = 0, ii = this.dragSegments_.length; i < ii; ++i) {
+    var dragSegment = this.dragSegments_[i];
+    var segmentData = dragSegment[0];
+    var depth = segmentData.depth;
+    var geometry = segmentData.geometry;
+    var coordinates = geometry.getCoordinates();
+    var segment = segmentData.segment;
+    var index = dragSegment[1];
+
+    while (vertex.length < geometry.getStride()) {
+      vertex.push(0);
+    }
+
+    var type = geometry.type || geometry.getType();
+    switch (type) {
+      case ol.geom.GeometryType.POINT:
+        coordinates = vertex;
+        segment[0] = segment[1] = vertex;
+        break;
+      case ol.geom.GeometryType.MULTI_POINT:
+        coordinates[segmentData.index] = vertex;
+        segment[0] = segment[1] = vertex;
+        break;
+      case ol.geom.GeometryType.LINE_STRING:
+        coordinates[segmentData.index + index] = vertex;
+        segment[index] = vertex;
+        break;
+      case ol.geom.GeometryType.MULTI_LINE_STRING:
+        coordinates[depth[0]][segmentData.index + index] = vertex;
+        segment[index] = vertex;
+        break;
+      case ol.geom.GeometryType.POLYGON:
+        coordinates[depth[0]][segmentData.index + index] = vertex;
+        segment[index] = vertex;
+        break;
+      case ol.geom.GeometryType.MULTI_POLYGON:
+        coordinates[depth[1]][depth[0]][segmentData.index + index] = vertex;
+        segment[index] = vertex;
+        break;
+      case "Rectangle": // TODO: create geom Rectangle/4gon
+    	  var vertexBeingDragged = 
+    		  this.vertexFeature_.getGeometry().getCoordinates();
+    	  if (this.oppVertBeingDragged == null) 
+	    	  for (var j=0;j<coordinates[depth[0]].length;j++)
+	    		  if (coordinates[depth[0]][j][0] !=  vertexBeingDragged[0] && 
+	    				coordinates[depth[0]][j][1] !=  vertexBeingDragged[1]) { 
+	    			this.oppVertBeingDragged = coordinates[depth[0]][j];
+	    			break;
+	    		  }
+    		  
+    	  coordinates[depth[0]][0] = vertex;
+    	  coordinates[depth[0]][1] = [this.oppVertBeingDragged[0], vertex[1]];
+    	  coordinates[depth[0]][2] = this.oppVertBeingDragged;
+    	  coordinates[depth[0]][3] = [vertex[0], this.oppVertBeingDragged[1]];
+    	  coordinates[depth[0]][4] = vertex;
+    	  segment[index] = geometry.getExtent().slice(index*2, (index+1)*2);
+          break;
+        
+      default:
+        // pass
+    }
+
+    this.setGeometryCoordinates_(geometry, coordinates);
+  }
+  this.createOrUpdateVertexFeature_(vertex);
+};
+
+
+ome.interaction.Modify.handleUpEvent_ = function(evt) {
+  this.oppVertBeingDragged = null;
+  var segmentData;
+  for (var i = this.dragSegments_.length - 1; i >= 0; --i) {
+    segmentData = this.dragSegments_[i][0];
+    
+    var type = segmentData.geometry.type || segmentData.geometry.getType();
+    if (type === 'Rectangle') {
+    	this.rBush_.clear();
+    	this.writePolygonGeometry_(segmentData.feature, segmentData.geometry);
+    } else
+    	this.rBush_.update(ol.extent.boundingExtent(segmentData.segment),
+        segmentData);
+  }
+  if (this.modified_) {
+    this.dispatchEvent(new ol.interaction.ModifyEvent(
+        ol.ModifyEventType.MODIFYEND, this.features_, evt));
+    this.modified_ = false;
+  }
+  return false;
+};
+
+
+ome.interaction.Modify.handleEvent = function(mapBrowserEvent) {
+  if (!(mapBrowserEvent instanceof ol.MapBrowserPointerEvent)) {
+    return true;
+  }
+
+  var handled;
+  if (!mapBrowserEvent.map.getView().getHints()[ol.ViewHint.INTERACTING] &&
+      mapBrowserEvent.type == ol.MapBrowserEvent.EventType.POINTERMOVE &&
+      !this.handlingDownUpSequence) {
+    this.handlePointerMove_(mapBrowserEvent);
+  }
+  if (this.vertexFeature_ && this.deleteCondition_(mapBrowserEvent)) {
+    if (mapBrowserEvent.type != ol.MapBrowserEvent.EventType.SINGLECLICK ||
+        !this.ignoreNextSingleClick_) {
+      var geometry = this.vertexFeature_.getGeometry();
+      goog.asserts.assertInstanceof(geometry, ol.geom.Point,
+          'geometry should be an ol.geom.Point');
+      this.willModifyFeatures_(mapBrowserEvent);
+      handled = this.removeVertex_();
+      this.dispatchEvent(new ol.interaction.ModifyEvent(
+          ol.ModifyEventType.MODIFYEND, this.features_, mapBrowserEvent));
+      this.modified_ = false;
+    } else {
+      handled = true;
+    }
+  }
+
+  if (mapBrowserEvent.type == ol.MapBrowserEvent.EventType.SINGLECLICK) {
+    this.ignoreNextSingleClick_ = false;
+  }
+
+  return ol.interaction.Pointer.handleEvent.call(this, mapBrowserEvent) &&
+      !handled;
+};
+
+
+ome.interaction.Modify.prototype.handlePointerAtPixel_ = function(pixel, map) {
+  var pixelCoordinate = map.getCoordinateFromPixel(pixel);
+  var sortByDistance = function(a, b) {
+    return ol.coordinate.squaredDistanceToSegment(pixelCoordinate, a.segment) -
+        ol.coordinate.squaredDistanceToSegment(pixelCoordinate, b.segment);
+  };
+
+  var lowerLeft = map.getCoordinateFromPixel(
+      [pixel[0] - this.pixelTolerance_, pixel[1] + this.pixelTolerance_]);
+  var upperRight = map.getCoordinateFromPixel(
+      [pixel[0] + this.pixelTolerance_, pixel[1] - this.pixelTolerance_]);
+  var box = ol.extent.boundingExtent([lowerLeft, upperRight]);
+
+  var rBush = this.rBush_;
+  var nodes = rBush.getInExtent(box);
+  if (nodes.length > 0) {
+    nodes.sort(sortByDistance);
+    var node = nodes[0];
+    var closestSegment = node.segment;
+    var vertex = (ol.coordinate.closestOnSegment(pixelCoordinate,
+        closestSegment));
+    var vertexPixel = map.getPixelFromCoordinate(vertex);
+    if (Math.sqrt(ol.coordinate.squaredDistance(pixel, vertexPixel)) <=
+        this.pixelTolerance_) {
+      var pixel1 = map.getPixelFromCoordinate(closestSegment[0]);
+      var pixel2 = map.getPixelFromCoordinate(closestSegment[1]);
+      var squaredDist1 = ol.coordinate.squaredDistance(vertexPixel, pixel1);
+      var squaredDist2 = ol.coordinate.squaredDistance(vertexPixel, pixel2);
+      var dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
+      this.snappedToVertex_ = dist <= this.pixelTolerance_;
+      var type = node.geometry.type || node.geometry.getType();
+      if (type === 'Rectangle') this.snappedToVertex_ = true;
+      if (this.snappedToVertex_) {
+        vertex = squaredDist1 > squaredDist2 ?
+            closestSegment[1] : closestSegment[0];
+      }
+      this.createOrUpdateVertexFeature_(vertex);
+      var vertexSegments = {};
+      vertexSegments[goog.getUid(closestSegment)] = true;
+      var segment;
+      for (var i = 1, ii = nodes.length; i < ii; ++i) {
+        segment = nodes[i].segment;
+        if ((ol.coordinate.equals(closestSegment[0], segment[0]) &&
+            ol.coordinate.equals(closestSegment[1], segment[1]) ||
+            (ol.coordinate.equals(closestSegment[0], segment[1]) &&
+            ol.coordinate.equals(closestSegment[1], segment[0])))) {
+          vertexSegments[goog.getUid(segment)] = true;
+        } else {
+          break;
+        }
+      }
+      this.vertexSegments_ = vertexSegments;
+      return;
+    }
+  }
+  if (this.vertexFeature_) {
+    this.overlay_.getSource().removeFeature(this.vertexFeature_);
+    this.vertexFeature_ = null;
+  }
+};
+
+
+
+
+
+
+
+
 
 goog.provide('ol.control.CustomOverviewMap');
 
@@ -713,87 +998,3 @@ ol.control.CustomOverviewMap.prototype.getOverviewMap = function() {
   return this.ovmap_;
 };
 
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'getOverviewMap',
-    ol.control.CustomOverviewMap.prototype.getOverviewMap);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'getMap',
-    ol.control.CustomOverviewMap.prototype.getMap);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'setMap',
-    ol.control.CustomOverviewMap.prototype.setMap);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'setTarget',
-    ol.control.CustomOverviewMap.prototype.setTarget);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'get',
-    ol.control.CustomOverviewMap.prototype.get);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'getKeys',
-    ol.control.CustomOverviewMap.prototype.getKeys);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'getProperties',
-    ol.control.CustomOverviewMap.prototype.getProperties);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'set',
-    ol.control.CustomOverviewMap.prototype.set);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'setProperties',
-    ol.control.CustomOverviewMap.prototype.setProperties);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'unset',
-    ol.control.CustomOverviewMap.prototype.unset);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'changed',
-    ol.control.CustomOverviewMap.prototype.changed);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'dispatchEvent',
-    ol.control.CustomOverviewMap.prototype.dispatchEvent);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'getRevision',
-    ol.control.OverviewMap.prototype.getRevision);
-
-goog.exportProperty(
-    ol.control.OverviewMap.prototype,
-    'on',
-    ol.control.OverviewMap.prototype.on);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'once',
-    ol.control.CustomOverviewMap.prototype.once);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'un',
-    ol.control.CustomOverviewMap.prototype.un);
-
-goog.exportProperty(
-    ol.control.CustomOverviewMap.prototype,
-    'unByKey',
-    ol.control.OverviewMap.prototype.unByKey);
