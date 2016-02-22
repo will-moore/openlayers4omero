@@ -61,12 +61,38 @@ var app = function() {
 			var select = new ol.interaction.Select();
 			var selFeats = select.getFeatures();
 			selFeats.on('add', function(event) {
-				var feature = event.element;
-				feature.on('change', function(ev) {
-					//app.updateRoi(ev.target);
-				});
+				if (selFeats.getLength() > 1) return;
+				app.viewport.getDrawControl().displayFeatureProperties(event.element);
 			});
 			app.viewport.addInteraction(select);
+			app.viewport.getDrawControl = function() {
+				var ret = null;
+				if (app.viewport.getControls().getLength() == 0)
+					return ret;
+				app.viewport.getControls().forEach(
+						function(item) {
+							if (item instanceof ome.control.Draw) {
+								ret = item;
+								return;
+							}
+						}
+					);
+				return ret;
+			}
+			app.viewport.getSelectedFeatures = function() {
+				var ret = new ol.Collection([]);
+				if (app.viewport.getLayers().getLength() < 1)
+					return ret;
+				app.viewport.getInteractions().forEach(
+						function(item) {
+							if (item instanceof ol.interaction.Select) {
+								ret = item.getFeatures();
+								return;
+							}
+						}
+					);
+				return ret;
+			}
 
 			var dragBox = new ol.interaction.DragBox({
 				condition: ol.events.condition.platformModifierKeyOnly
@@ -106,7 +132,8 @@ var app = function() {
 							if (delInter) app.viewport.removeInteraction(item);
 							else item.setActive(false);
 						}
-					} else if (item instanceof ol.interaction.Translate ||
+					} else if (item instanceof ol.interaction.Select ||
+							item instanceof ol.interaction.Translate ||
 							item instanceof ol.interaction.Modify ||
 							item instanceof ol.interaction.DragBox)  {
 						if (setActiveOrNot) item.setActive(false); // drawing and modifying mutually exclusive
@@ -619,8 +646,13 @@ var app = function() {
 		}, convertHexRgbStringToRgbaString : function(hex_rgb, alpha) {
 			if (typeof(hex_rgb) != 'string')
 				return hex_rgb;
-			if (typeof(alpha) != 'number')
-				return hex_rgb;
+			if (typeof(alpha) != 'number') {
+				try {
+					alpha = parseFloat(alpha);
+				} catch (goodbye) {
+					return hex_rgb;
+				}
+			}
 			
 			var len = hex_rgb.length;
 			if (len != 7)
@@ -649,16 +681,18 @@ var app = function() {
 				return null;
 			if (rgba[0] == '#' && rgba.length == 7)
 				return {rgb: rgba, alpha: 1};
-			var pureRgbaWithCommas = rgba.replace(/\(rgba|\(|rgba|rgb|\)/g, "");
-			var tok = pureRgbaWithCommas.split(",");
-			if (tok.length == 3 || tok.length == 4) {
-				var ret = {rgb: "#" + 
-					("00" + parseInt(tok[0]).toString(16)).substr(-2) +
-					("00" + parseInt(tok[1]).toString(16)).substr(-2) +
-					("00" + parseInt(tok[2]).toString(16)).substr(-2), alpha: 1.0};
-				if (tok.length == 4) ret.alpha = parseFloat(tok[3]);
-				return ret;
-			}
+			try {
+				var pureRgbaWithCommas = rgba.replace(/\(rgba|\(|rgba|rgb|\)/g, "");
+				var tok = pureRgbaWithCommas.split(",");
+				if (tok.length == 3 || tok.length == 4) {
+					var ret = {rgb: "#" + 
+						("00" + parseInt(tok[0]).toString(16)).substr(-2) +
+						("00" + parseInt(tok[1]).toString(16)).substr(-2) +
+						("00" + parseInt(tok[2]).toString(16)).substr(-2), alpha: 1.0};
+					if (tok.length == 4) ret.alpha = parseFloat(tok[3]);
+					return ret;
+				}
+			} catch (ignored) {} 
 			return null;
 		}
 	}

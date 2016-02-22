@@ -94,4 +94,12 @@ html, body {
 	top:5em;
 	left:.5em;
 	transition:opacity .25s linear;
+	width: 200px;
 }
+
+.ol-draw-bar {
+	width: 25px;
+}
+
+.ol-draw-properties {
+	width: 175px;

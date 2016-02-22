@@ -163,89 +163,238 @@ goog.events.listen(circleElement,
 goog.events.EventType.CLICK, goog.partial(
     ome.control.Draw.prototype.drawCircle_), false, this);
 
-  var cssClasses = className + ' ' + ol.css.CLASS_UNSELECTABLE + ' ' +
-      ol.css.CLASS_CONTROL;
-  var element = goog.dom.createDom('DIV', cssClasses,
-		  rectElement, polyElement, lineElement, pointElement, circleElement);
+var drawBar = goog.dom.createDom('DIV', className + '-bar left',  
+	rectElement, polyElement, lineElement, pointElement, circleElement);
 
+var textFont = goog.dom.createDom('SELECT', 
+	{'title': 'Font Family', 'id' : 'featFont','value' : 'Arial', 'style' : 'margin-top: 3px;width:150px'});
+goog.dom.append(textFont, goog.dom.createDom('OPTION', {'value' : 'Arial'}, 'Arial'));
+goog.dom.append(textFont, goog.dom.createDom('OPTION', {'value' : 'Courier New'}, 'Courier New'));
+goog.dom.append(textFont, goog.dom.createDom('OPTION', {'value' : 'Verdana'}, 'Verdana'));
+
+var textInput = goog.dom.createDom('INPUT',
+	{'title': 'Text', 'id' : 'featText', 'type' : 'text', 'style' : 'margin-top: 3px'});
+var fontSize = goog.dom.createDom('INPUT',
+	{'title': 'Font Size (incl. units, e.g. px)', 'id' : 'featFontSize', 'type' : 'text', 'value' : '15px', 'style' : 'margin-top: 3px; margin-left: 3px;width: 50px'});
+var fontStyle = goog.dom.createDom('INPUT',
+	{'title': 'Font Style, e.g. Normal, Bold','id' : 'featFontStyle', 'type' : 'text', 'value' : 'Normal', 'style' : 'margin-top: 3px; margin-left: 3px;width: 50px'});
+
+var fillColor = goog.dom.createDom('INPUT',
+	{'title': 'Fill Color','id' : 'fillColor', 'type' : 'text', 'style' : 'margin-top: 3px;margin-left: 3px;width: 50px'});
+var fillAlpha = goog.dom.createDom('INPUT',
+	{'title': 'Fill Alpha (>= 0 && <= 1.0)','id' : 'fillAlpha', 'type' : 'text', 'style' : 'margin-top: 3px;margin-left: 3px;width: 50px'});
+
+var strokeColor = goog.dom.createDom('INPUT', 
+	{'title': 'Stroke Color', 'id' : 'strokeColor', 'type' : 'text', 'style' : 'margin-top: 3px;'});
+var strokeAlpha = goog.dom.createDom('INPUT',
+	{'title': 'Stroke Alpha (>= 0 && <= 1.0)','id' : 'strokeAlpha', 'type' : 'text', 'style' : 'margin-top: 3px;width: 50px;margin-left: 3px'});
+var strokeWidth = goog.dom.createDom('INPUT',
+	{'title': 'Stroke Width', 'id' : 'strokeWidth', 'type' : 'text', 'style' : 'margin-top: 3px;width: 50px;margin-left: 3px'});
+
+var updateButton = goog.dom.createDom('BUTTON', {
+    'type' : 'button',
+    'title': 'Update Selected Feature',
+    'style' : 'margin-top: 5px; width: 100%'
+  }, 'Update');
+
+goog.events.listen(updateButton,
+	goog.events.EventType.CLICK, goog.partial(
+	    ome.control.Draw.prototype.updateFeatureProperties_), false, this);
+
+var propertyDiv = goog.dom.createDom('DIV', 
+		{'class' : className + '-properties right'},
+		textFont, fontStyle, fontSize, textInput, fillColor, fillAlpha, strokeColor, strokeAlpha, strokeWidth, updateButton);
+
+var cssClasses = className + ' ' + ol.css.CLASS_UNSELECTABLE + ' ' +
+      ol.css.CLASS_CONTROL;
+  var element = goog.dom.createDom('DIV', cssClasses, drawBar, propertyDiv);
+
+  
   goog.base(this, {
     element: element,
     target: options.target
   });
-
+  
 };
 goog.inherits(ome.control.Draw, ol.control.Control);
 
-ome.control.Draw.prototype.drawRectangle_ = function(event) {
-	app.activateDraw(false, true);
+ome.control.Draw.prototype.displayFeatureProperties = function(feature) {
+	if (!(feature instanceof ol.Feature)) return;
+	
+	var presentStyle = feature.getStyle();
+	
+	// TODO: move app code out of there
+	var stroke = presentStyle ? presentStyle.getStroke() : null;
+	var strokeColor = "#000000";
+	var strokeAlpha = 1.0;
+	var strokeWidth =  1;
+	var tmp = null;
+	if (stroke) {
+		strokeWidth = stroke.getWidth();
+		tmp = app.convertRgbaStringToHexRgbString(stroke.getColor());
+		if (tmp) {
+			strokeColor = tmp.rgb;
+			strokeAlpha = tmp.alpha;
+		}
+	}
+	var fill =  presentStyle ? presentStyle.getFill() : null;
+	var fillColor = "#ffffff";
+	var fillAlpha = 1.0;
+	if (fill) {
+		tmp = app.convertRgbaStringToHexRgbString(fill.getColor());
+		if (tmp) {
+			fillColor = tmp.rgb;
+			fillAlpha = tmp.alpha;
+		}
+	}
+	var textStyle =  presentStyle ? presentStyle.getText() : null;
+	var text = '';
+	var fontFamily = 'Arial';
+	var fontSize = '10px';
+	var fontStyle = 'Normal';
+	if (textStyle) {
+		text = textStyle.getText();
+		var font = textStyle.getFont();
+		if (font) {
+			var fontTok = font.split(' ');
+			for (t in fontTok) {
+				if (t == 0)
+					fontStyle = fontTok[t];
+				else if (t == 1)
+					fontSize = fontTok[t];
+				else if (t == 2)
+					fontFamily = fontTok[t];
+			}
+		}
+	}
+	goog.dom.getElement("featText").value = text;
+	goog.dom.getElement("featFont").value = fontFamily;
+	goog.dom.getElement("featFontStyle").value = fontStyle;
+	goog.dom.getElement("featFontSize").value = fontSize;
+	goog.dom.getElement("fillColor").value = fillColor;
+	goog.dom.getElement("fillAlpha").value = fillAlpha;
+	goog.dom.getElement("strokeColor").value = strokeColor;
+	goog.dom.getElement("strokeAlpha").value = strokeAlpha;
+	goog.dom.getElement("strokeWidth").value = strokeWidth;
+}
+
+ome.control.Draw.prototype.activateDraw = function(flag, remove) {
+	var setActiveOrNot = false;
+	if (typeof(flag) == 'boolean') setActiveOrNot = flag;
+	var delInter = remove || false;
+	
+	this.getMap().getInteractions().forEach(
+		function(item) {
+			if (item instanceof ol.interaction.Draw)  {
+				if (setActiveOrNot) item.setActive(true);
+				else {
+					if (delInter) app.viewport.removeInteraction(item);
+					else item.setActive(false);
+				}
+			} else if (item instanceof ol.interaction.Select ||
+					item instanceof ol.interaction.Translate ||
+					item instanceof ol.interaction.Modify ||
+					item instanceof ol.interaction.DragBox)  {
+				if (setActiveOrNot) item.setActive(false); // drawing and modifying mutually exclusive
+				else item.setActive(true);
+			}
+		}
+	);
+};
+
+ome.control.Draw.prototype.drawShapeCommonCode_ = function(shape, onDrawEnd, geometryFunction) {
+	if (typeof(shape) != 'string')
+		shape = 'Point';
+	var onDrawEndAction = onDrawEnd || function(event) {
+		this.getMap().getSelectedFeatures().clear();
+		this.activateDraw(false, true);
+	};
+	
+	this.activateDraw(false, true);
 	var draw = new ol.interaction.Draw({
-		source: app.viewport.getLayers().item(
-				app.viewport.getLayers().getLength()-1).getSource(),
-		type: 'Circle',
-		geometryFunction: ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4)
+		source: this.getMap().getLayers().item(
+				this.getMap().getLayers().getLength()-1).getSource(),
+		type: shape,
+		geometryFunction: geometryFunction ? geometryFunction : null
 	});
 	this.getMap().addInteraction(draw);
-	app.activateDraw(true);
-	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
+	this.activateDraw(true);
+	draw.on(ol.interaction.DrawEventType.DRAWEND, onDrawEndAction, this);
+}
+
+ome.control.Draw.prototype.drawRectangle_ = function(event) {
+	this.drawShapeCommonCode_('Circle', function(event) {
 		if (event.feature)
 			event.feature.getGeometry().type = "Rectangle";
-		app.activateDraw(false, true);
+		this.activateDraw(false, true);}, 
+		ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4));
+};
+
+ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
+	var selectedFeatures = this.getMap().getSelectedFeatures();
+	if (selectedFeatures.getLength() == 0) return;
+	
+	var textStyle = null;
+	var text = goog.dom.getElement("featText").value;
+	if (text && text.replace(/\s/g, '').length > 0) {
+		textStyle = new ol.style.Text({text: text});
+		var font = "";
+		var fontFamily = goog.dom.getElement("featFont").value;
+		var fontStyle = goog.dom.getElement("featFontStyle").value.replace(/\s/g, '');
+		var fontSize =  goog.dom.getElement("featFontSize").value.replace(/\s/g, '');
+		if (fontStyle.length > 0) font = fontStyle
+		else font = "Normal";
+		if (fontSize.length > 0) font += " " + fontSize
+		else font += " 10px";
+		if (fontFamily.length > 0) font += " " + fontFamily
+		else font += " Arial";
+		textStyle.setFont(font);
+	}
+	var fill = null;
+	var fillColor = goog.dom.getElement("fillColor").value;
+	var fillAlpha = goog.dom.getElement("fillAlpha").value;
+	try {
+		fill = new ol.style.Fill( {color: app.convertHexRgbStringToRgbaString(fillColor, fillAlpha)});
+	} catch (ignored) {}
+	var stroke = null;	
+	var strokeColor = goog.dom.getElement("strokeColor").value;
+	var strokeAlpha = goog.dom.getElement("strokeAlpha").value;
+	var strokeWidth = goog.dom.getElement("strokeWidth").value;
+	try {
+		stroke = new ol.style.Stroke( 
+			{color: app.convertHexRgbStringToRgbaString(strokeColor, strokeAlpha),
+				width: parseFloat(strokeWidth)
+		});
+	} catch (ignored) {}
+	
+	
+	if (textStyle == null && fill == null && stroke == null)
+		return;
+		
+	var updatedStyle = new ol.style.Style({
+		text : textStyle,
+		fill : fill,
+		stroke : stroke
 	});
+	selectedFeatures.forEach(function(feature) {
+		feature.setStyle(updatedStyle);
+		});	
 };
 
 ome.control.Draw.prototype.drawPolygon_ = function(event) {
-	app.activateDraw(false, true);
-	var draw = new ol.interaction.Draw({
-		source: app.viewport.getLayers().item(
-				app.viewport.getLayers().getLength()-1).getSource(),
-		type: 'Polygon',
-	});
-	this.getMap().addInteraction(draw);
-	app.activateDraw(true);
-	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
-		app.activateDraw(false, true);
-	});
+	this.drawShapeCommonCode_('Polygon');
 };
 
 ome.control.Draw.prototype.drawLine_ = function(event) {
-	app.activateDraw(false, true);
-	var draw = new ol.interaction.Draw({
-		source: app.viewport.getLayers().item(
-				app.viewport.getLayers().getLength()-1).getSource(),
-		type: 'LineString',
-	});
-	this.getMap().addInteraction(draw);
-	app.activateDraw(true);
-	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
-		app.activateDraw(false, true);
-	});
+	this.drawShapeCommonCode_('LineString');
 };
 
 ome.control.Draw.prototype.drawPoint_ = function(event) {
-	app.activateDraw(false, true);
-	var draw = new ol.interaction.Draw({
-		source: app.viewport.getLayers().item(
-				app.viewport.getLayers().getLength()-1).getSource(),
-		type: 'Point',
-	});
-	this.getMap().addInteraction(draw);
-	app.activateDraw(true);
-	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
-		app.activateDraw(false, true);
-	});
+	this.drawShapeCommonCode_('Point');
 };
 
 ome.control.Draw.prototype.drawCircle_ = function(event) {
-	var draw = new ol.interaction.Draw({
-		source: app.viewport.getLayers().item(
-				app.viewport.getLayers().getLength()-1).getSource(),
-		type: 'Circle',
-	});
-	this.getMap().addInteraction(draw);
-	app.activateDraw(true);
-	draw.on(ol.interaction.DrawEventType.DRAWEND, function(event) {
-		app.activateDraw(false, true);
-	});
+	this.drawShapeCommonCode_('Circle');
 };
 
 
