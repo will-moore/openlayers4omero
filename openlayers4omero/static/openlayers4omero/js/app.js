@@ -361,6 +361,24 @@ var app = function() {
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
 			app.initModifyMode();
 			
+			// TODO: first try to hook into rendering by use of standard event handling
+			var someAction = function(canvas) {
+				console.log("canvas");
+			}
+			app.viewport.on('precompose',
+				function(event) {
+					console.log("precompose");
+					someAction(this.getRenderer().canvas_);
+			});
+			app.viewport.on('postcompose',
+				function(event) {
+					console.log("postcompose");
+			});
+			app.viewport.on('postrender',
+				function(event) {
+					console.log("postrender");	
+			});
+			
 			// if roi count > 0 send off request for image
 			if (selDs.roiCount > 0) {
 				app.images[selDs.id].rois = null;
@@ -401,16 +419,16 @@ var app = function() {
 					var actFeat = feat(data[i].shapes[s]);
 					actFeat.setId('' + id + ':' + data[i].id + ":" + data[i].shapes[s].id);
 					
-					var featStyle = actFeat.getStyle();
+					if (actFeat.getStyle()) {
 					// we immediately override the given style with a function so that text is scaled 
-					(function(style) {
-						actFeat.setStyle(function(resolution) {
-							var innerStyle = style;
-							if (innerStyle && innerStyle.getText())
-								innerStyle.getText().setScale(1/resolution);
-							return innerStyle;
-						});
-					})(actFeat.getStyle());
+						(function(style) {
+							actFeat.setStyle(function(resolution) {
+								if (style.getText())
+									style.getText().setScale(1/resolution);
+								return style;
+							});
+						})(actFeat.getStyle());
+					}					
 					source.addFeature(actFeat);
 				}
 				count++;
