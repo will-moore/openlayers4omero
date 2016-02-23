@@ -400,6 +400,17 @@ var app = function() {
 						continue;
 					var actFeat = feat(data[i].shapes[s]);
 					actFeat.setId('' + id + ':' + data[i].id + ":" + data[i].shapes[s].id);
+					
+					var featStyle = actFeat.getStyle();
+					// we immediately override the given style with a function so that text is scaled 
+					(function(style) {
+						actFeat.setStyle(function(resolution) {
+							var innerStyle = style;
+							if (innerStyle && innerStyle.getText())
+								innerStyle.getText().setScale(1/resolution);
+							return innerStyle;
+						});
+					})(actFeat.getStyle());
 					source.addFeature(actFeat);
 				}
 				count++;
@@ -535,22 +546,29 @@ var app = function() {
 			ret |= parseInt("0x" + alpha + red + green + blue, 16);
 			return ret;
 		},
+		createRectangleGeometry : function(shape) {
+			// TODO: do this proper with ol class hierarchy
+			var ret =
+				new ol.geom.Polygon(
+					[[[shape.x, -shape.y],
+					 [shape.x+shape.width, -shape.y],
+					 [shape.x+shape.width, -shape.y-shape.height],
+					 [shape.x, -shape.y-shape.height],
+					 [shape.x, -shape.y]
+					]],ol.geom.GeometryLayout.XY);
+			ret.type = "Rectangle";
+			return ret;
+		},
 		roiRenderHandler : {
 			"Rectangle" : function(shape) {
-				var geometry =  
-					new ol.geom.Polygon(
-						[[[shape.x, -shape.y],
-						 [shape.x+shape.width, -shape.y],
-						 [shape.x+shape.width, -shape.y-shape.height],
-						 [shape.x, -shape.y-shape.height],
-						 [shape.x, -shape.y]
-						]],ol.geom.GeometryLayout.XY);
-				geometry.type = "Rectangle";
-				var feat = new ol.Feature({geometry : geometry});
+				var feat = new ol.Feature({geometry : app.createRectangleGeometry(shape)});
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
 			}, "Label" : function(shape) {
-				var feat = new ol.Feature({geometry : new ol.geom.Circle([shape.x, -shape.y], 10)});
+				shape.width = 50; shape.height = 20;
+				var geom = app.createRectangleGeometry(shape);
+				geom.isLabel = true;
+				var feat = new ol.Feature({geometry : geom});
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
 			}, "Polygon" : function(shape) {
@@ -589,13 +607,13 @@ var app = function() {
 					}
 					c++;
 				}
-				
 				var feat = new ol.Feature({geometry : new ol.geom.Polygon([coords])});
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
 			}
 		}, createFeatureStyle : function(shape) {
 			if (typeof(shape) != 'object') return null;
+			var forLabel = (typeof(shape.isLabel) != 'boolean') ? shape.isLabel : false;
 			
 			var stroke = {count : 0};
 			var fill = {count : 0};
@@ -637,6 +655,8 @@ var app = function() {
 				text.textBaseline = 'top';
 				text.textAlign = 'left';
 				style.text = new ol.style.Text(text);
+				style.stroke = new ol.style.Stroke({color: "rgba(255,255,255,0)", width: 1});
+				style.fill = new ol.style.Fill({color: "rgba(255,255,255,0)"});
 			} else {
 				if (stroke) style.stroke = stroke;
 				if (fill) style.fill = fill;

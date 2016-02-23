@@ -166,11 +166,8 @@ goog.events.EventType.CLICK, goog.partial(
 var drawBar = goog.dom.createDom('DIV', className + '-bar left',  
 	rectElement, polyElement, lineElement, pointElement, circleElement);
 
-var textFont = goog.dom.createDom('SELECT', 
-	{'title': 'Font Family', 'id' : 'featFont','value' : 'Arial', 'style' : 'margin-top: 3px;width:150px'});
-goog.dom.append(textFont, goog.dom.createDom('OPTION', {'value' : 'Arial'}, 'Arial'));
-goog.dom.append(textFont, goog.dom.createDom('OPTION', {'value' : 'Courier New'}, 'Courier New'));
-goog.dom.append(textFont, goog.dom.createDom('OPTION', {'value' : 'Verdana'}, 'Verdana'));
+var textFont = goog.dom.createDom('INPUT', 
+	{'title': 'Font Family', 'id' : 'featFont', 'type' : 'text', 'style' : 'margin-top: 3px;width:150px'});
 
 var textInput = goog.dom.createDom('INPUT',
 	{'title': 'Text', 'id' : 'featText', 'type' : 'text', 'style' : 'margin-top: 3px'});
@@ -221,9 +218,15 @@ goog.inherits(ome.control.Draw, ol.control.Control);
 ome.control.Draw.prototype.displayFeatureProperties = function(feature) {
 	if (!(feature instanceof ol.Feature)) return;
 	
-	var presentStyle = feature.getStyle();
+	if (feature.getStyle() == null || feature.getGeometry() == null)
+		return;
+	var actStyle = (typeof(feature.getStyle()) === 'function') ?
+	 (feature.getStyle())(this.getMap().getView().getResolution()) : feature.getStyle();
+
+	var isLabel = (typeof(feature.getGeometry().isLabel) === 'boolean') ? feature.getGeometry().isLabel : false;
+	var presentStyle = isLabel ? actStyle.getText() : actStyle;
 	
-	// TODO: move app code out of there
+	// TODO: move app code out of there (conversion routines)
 	var stroke = presentStyle ? presentStyle.getStroke() : null;
 	var strokeColor = "#000000";
 	var strokeAlpha = 1.0;
@@ -247,7 +250,7 @@ ome.control.Draw.prototype.displayFeatureProperties = function(feature) {
 			fillAlpha = tmp.alpha;
 		}
 	}
-	var textStyle =  presentStyle ? presentStyle.getText() : null;
+	var textStyle =  actStyle.getText() ? actStyle.getText() : null;
 	var text = '';
 	var fontFamily = 'Arial';
 	var fontSize = '10px';
@@ -342,12 +345,16 @@ ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 		var fontFamily = goog.dom.getElement("featFont").value;
 		var fontStyle = goog.dom.getElement("featFontStyle").value.replace(/\s/g, '');
 		var fontSize =  goog.dom.getElement("featFontSize").value.replace(/\s/g, '');
+		try {
+			fontSize = parseInt(fontSize);
+		} catch(whateva) {
+			fontSize = 20;
+		}
 		if (fontStyle.length > 0) font = fontStyle
 		else font = "Normal";
-		if (fontSize.length > 0) font += " " + fontSize
-		else font += " 10px";
-		if (fontFamily.length > 0) font += " " + fontFamily
-		else font += " Arial";
+		font += " " + fontSize + "px ";
+		if (fontFamily.length > 0) font += fontFamily
+		else font += "Arial";
 		textStyle.setFont(font);
 	}
 	var fill = null;
@@ -371,14 +378,33 @@ ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 	if (textStyle == null && fill == null && stroke == null)
 		return;
 		
-	var updatedStyle = new ol.style.Style({
-		text : textStyle,
-		fill : fill,
-		stroke : stroke
-	});
+	var updatedStyleFunc = function(isLabel) {
+		if (textStyle) {
+			textStyle.setStroke(stroke);
+			textStyle.setFill(fill);
+		}
+		if (!isLabel) {
+			return new ol.style.Style({
+				text : textStyle,
+				fill : fill,
+				stroke : stroke});
+		}
+		return new ol.style.Style({
+				text : textStyle,
+				fill : new ol.style.Fill({color: "rgba(255,255,255,0)"}),
+				stroke : new ol.style.Stroke({color: "rgba(255,255,255,0)", width: 1}) });
+	};
 	selectedFeatures.forEach(function(feature) {
-		feature.setStyle(updatedStyle);
-		});	
+		var isLabel = (typeof(feature.getGeometry().isLabel) === 'boolean') ? feature.getGeometry().isLabel : false;
+		var updatedStyle = updatedStyleFunc(isLabel);
+		// we need to use a style function to scale text appropriately
+		feature.setStyle(function(resolution) {
+			var innerStyle = updatedStyle;
+			if (innerStyle && innerStyle.getText())
+				innerStyle.getText().setScale(1/resolution);
+			return innerStyle;
+		});
+	});		
 };
 
 ome.control.Draw.prototype.drawPolygon_ = function(event) {
