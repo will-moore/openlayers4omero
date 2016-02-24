@@ -210,7 +210,7 @@ var app = function() {
 							source.setTime(parseInt($(_id).val()));
 						else if  (_id == '#ome_c_index')
 							source.setChannel(parseInt($(_id).val()));
-						source.setTileLoadFunction(source.getTileLoadFunction());
+						source.forceRender();
 					})
 				})(id);
 			}
@@ -329,7 +329,8 @@ var app = function() {
 			var addControls = [
 			    new ol.control.CustomOverviewMap(),
 			    new ome.control.Draw(),
-				new ol.control.FullScreen()];
+				new ol.control.FullScreen(),
+				new ome.canvas.Interaction()];
 				//new ol.control.ScaleLine()];
 			
 			var defaultInteractions = {
@@ -361,24 +362,22 @@ var app = function() {
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
 			app.initModifyMode();
 			
-			// TODO: first try to hook into rendering by use of standard event handling
-			var someAction = function(canvas) {
-				console.log("canvas");
+			// a post tile load hook
+			var someAction = function(image) {		
+				var context = ol.dom.createCanvasContext2D(image.width, image.height);
+				context.drawImage(image, 0,0);
+				var imageData = context.getImageData(0,0, context.canvas.width, context.canvas.height);
+				var data = imageData.data;
+				
+				for (var i = 0, ii = data.length; i < ii; i++) {
+					var avg = (data[i*4] + data[i*4+1] + data[i*4+2]) /3;
+					data[i*4] = avg;
+					data[i*4+1] = avg + 30;
+					data[i*4+2] = avg;
+				}
+				context.putImageData(imageData, 0, 0);
+			    return context.canvas;	    	  
 			}
-			app.viewport.on('precompose',
-				function(event) {
-					console.log("precompose");
-					someAction(this.getRenderer().canvas_);
-			});
-			app.viewport.on('postcompose',
-				function(event) {
-					console.log("postcompose");
-			});
-			app.viewport.on('postrender',
-				function(event) {
-					console.log("postrender");	
-			});
-			
 			// if roi count > 0 send off request for image
 			if (selDs.roiCount > 0) {
 				app.images[selDs.id].rois = null;

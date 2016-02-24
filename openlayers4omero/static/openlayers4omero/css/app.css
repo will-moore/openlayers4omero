@@ -103,3 +103,16 @@ html, body {
 
 .ol-draw-properties {
 	width: 175px;
+}
+
+.ol-canvas-interaction	{
+	top:15em;
+	right:.5em;
+	transition:opacity .25s linear;
+	width: 500px;
+	height: 250px;
+}
+
+.ol-canvas-interaction-code {
+	height: 90%;
+}

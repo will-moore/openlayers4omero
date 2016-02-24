@@ -46,18 +46,39 @@ ome.source.Omero = function(opts) {
       			'/' + zoom; 
 			}
 	}
-  
+    
+	this.postTileLoadFunction = null;
+	
 	goog.base(this, {
 		attributions: opts.attributions,
 		crossOrigin: opts.crossOrigin,
 		logo: opts.logo,
 		reprojectionErrorThreshold: opts.reprojectionErrorThreshold,
+		tileClass:  ome.source.OmeroTile_,
 		tileGrid: tileGrid,
 		tileUrlFunction: tileUrlFunction
 	});
-
 };
 goog.inherits(ome.source.Omero, ol.source.TileImage);
+
+ome.source.Omero.prototype.createTile_ = function(z, x, y, pixelRatio, projection, key) {
+	  var tileCoord = [z, x, y];
+	  var urlTileCoord = this.getTileCoordForTileUrlFunction(
+	      tileCoord, projection);
+	  var tileUrl = urlTileCoord ?
+	      this.tileUrlFunction(urlTileCoord, pixelRatio, projection) : undefined;
+	  var tile = new this.tileClass(
+	      tileCoord,
+	      tileUrl !== undefined ? ol.TileState.IDLE : ol.TileState.EMPTY,
+	      tileUrl !== undefined ? tileUrl : '',
+	      this.crossOrigin,
+	      this.tileLoadFunction);
+	  tile.key = key;
+	  tile.source = this;
+	  goog.events.listen(tile, goog.events.EventType.CHANGE,
+	      this.handleTileChange, false, this);
+	  return tile;
+	};
 
 ome.source.Omero.prototype.getImageId = function() {
 	  return this.imageId_;
@@ -91,7 +112,133 @@ ome.source.Omero.prototype.setChannel = function(value) {
 	  this.channel_ = value;
 }
 
+ome.source.Omero.prototype.setPostTileLoadFunction = function(func) {
+	if (typeof(func) != 'function')
+		 return;
+	this.postTileLoadFunction =  func;
+	this.forceRender();
+}
 
+ome.source.Omero.prototype.clearPostTileLoadFunction = function() {
+	this.postTileLoadFunction =  null;
+	this.forceRender();
+}
+
+ome.source.Omero.prototype.forceRender = function() {
+	this.tileCache.clear();
+	this.changed();
+}
+
+ome.source.OmeroTile_ = function(
+	tileCoord, state, src, crossOrigin, tileLoadFunction) {
+	goog.base(this, tileCoord, state, src, crossOrigin, tileLoadFunction);
+	};
+	this.imageByContext_ = {};
+goog.inherits(ome.source.OmeroTile_, ol.ImageTile);
+
+ome.source.OmeroTile_.prototype.getImage = function(opt_context) {
+	var image = goog.base(this, 'getImage', opt_context);
+	if (this.source.postTileLoadFunction == null)
+		return image;
+	
+	var key = goog.getUid(image);
+	if (key in this.imageByContext_) {
+		 return this.imageByContext_[key];
+	}
+	if (this.state == ol.TileState.LOADED) {
+		try {
+			var context = this.source.postTileLoadFunction(image);
+			this.imageByContext_[key] = context;
+			return context;
+		} catch(crashBoomBang) {
+			alert("post Tile function code failed!");
+			return image;
+		}
+	} else {
+		return image;
+	}
+};
+
+goog.provide('ome.canvas.Interaction');
+
+ome.canvas.Interaction = function(opt_options) {
+
+	  var options = opt_options ? opt_options : {};
+	
+	  var className = options.className ? options.className : 'ol-canvas-interaction';
+
+	  var codeElement = goog.dom.createDom('TEXTAREA', {
+		'id' : 'eval-code',
+		'class': className + '-code',
+		'title': 'Type syntactically correct code',
+		'style' : 'margin-top: 5px; width: 100%',
+		'value' : 'var context = ol.dom.createCanvasContext2D(image.width, image.height);\n' +
+			'context.drawImage(image, 0,0);\n' + 
+			'var imageData = context.getImageData(0,0, context.canvas.width, context.canvas.height);\n' + 
+			'var data = imageData.data;\n' +
+			'for (var i = 0, ii = data.length; i < ii; i++) {\n' +
+			'var avg = (data[i*4] + data[i*4+1] + data[i*4+2]) /3;\n' +
+			'data[i*4] = avg;\n' +
+			'data[i*4+1] = avg + 30;\n' +
+			'data[i*4+2] = avg;\n' +
+			'}\n' +
+			'context.putImageData(imageData, 0, 0);\n' +
+		'return context.canvas;\n'
+		  });
+
+	  var evalElement = goog.dom.createDom('BUTTON', {
+	'class': className + '-eval',
+	'type' : 'button',
+	'title': 'Eval Code and Execute',
+	'style' : 'margin-top: 5px; width: 100%'
+	  }, 'Execute Code');
+	
+	  goog.events.listen(evalElement,
+	      goog.events.EventType.CLICK, goog.partial(
+	    	ome.canvas.Interaction.prototype.eval_), false, this);
+
+	  var resetElement = goog.dom.createDom('BUTTON', {
+			'class': className + '-reset',
+			'type' : 'button',
+			'title': 'Reset Canvas',
+			'style' : 'margin-top: 5px; width: 100%'
+			  }, 'Reset Canvas');
+			
+			  goog.events.listen(resetElement,
+			      goog.events.EventType.CLICK, goog.partial(
+			    	ome.canvas.Interaction.prototype.reset_), false, this);
+
+	var cssClasses = className + ' ' + ol.css.CLASS_UNSELECTABLE + ' ' +
+	      ol.css.CLASS_CONTROL;
+	  var element = goog.dom.createDom('DIV', cssClasses, codeElement, evalElement, resetElement);
+	
+	  
+	  goog.base(this, {
+	    element: element,
+	    target: options.target
+	  });
+	  
+};
+goog.inherits(ome.canvas.Interaction, ol.control.Control);
+
+ome.canvas.Interaction.prototype.eval_ = function() {
+	var canvasFunction = null;
+	try {
+		var wrappedCode = "var ret = function(image) {" + 
+			goog.dom.getElement("eval-code").value +
+			"};ret";
+		canvasFunction = eval(wrappedCode);
+	} catch(crashBoomBang) {
+		alert("eval failed!");
+		return;
+	}
+	
+	this.getMap().getLayers().item(0).getSource().setPostTileLoadFunction(canvasFunction);
+}
+
+ome.canvas.Interaction.prototype.reset_ = function() {
+	this.getMap().getLayers().item(0).getSource().clearPostTileLoadFunction();
+}
 
 
 
