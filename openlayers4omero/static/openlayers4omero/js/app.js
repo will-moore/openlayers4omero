@@ -360,24 +360,19 @@ var app = function() {
 				app.viewport.setView(view);
 			}
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
+
+			// add custom canvas layer
+			//app.viewport.addLayer(
+			//	new ol.layer.Image({
+			//		source: new ome.source.OmeroCanvas({
+			//			map: app.viewport
+			//	})
+			//}));
+
+			
 			app.initModifyMode();
 			
-			// a post tile load hook
-			var someAction = function(image) {		
-				var context = ol.dom.createCanvasContext2D(image.width, image.height);
-				context.drawImage(image, 0,0);
-				var imageData = context.getImageData(0,0, context.canvas.width, context.canvas.height);
-				var data = imageData.data;
-				
-				for (var i = 0, ii = data.length; i < ii; i++) {
-					var avg = (data[i*4] + data[i*4+1] + data[i*4+2]) /3;
-					data[i*4] = avg;
-					data[i*4+1] = avg + 30;
-					data[i*4+2] = avg;
-				}
-				context.putImageData(imageData, 0, 0);
-			    return context.canvas;	    	  
-			}
+			
 			// if roi count > 0 send off request for image
 			if (selDs.roiCount > 0) {
 				app.images[selDs.id].rois = null;

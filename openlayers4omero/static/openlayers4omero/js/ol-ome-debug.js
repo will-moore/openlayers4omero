@@ -159,6 +159,60 @@ ome.source.OmeroTile_.prototype.getImage = function(opt_context) {
 	}
 };
 
+
+
+
+goog.provide('ome.source.OmeroCanvas');
+
+ome.source.OmeroCanvas = function(options) {
+	this.map = (options && options.map) ? options.map : null;
+	goog.base(this, {
+		canvasFunction: ome.source.OmeroCanvas.prototype.myCanvasFunction,
+		projection : this.map ? this.map.getView().getProjection() : null
+	});
+	if (this.map)
+		this.mycontext = ol.dom.createCanvasContext2D(
+				this.map.getRenderer().canvas_.width, this.map.getRenderer().canvas_.height);
+}
+goog.inherits(ome.source.OmeroCanvas, ol.source.ImageCanvas);
+
+ome.source.OmeroCanvas.prototype.getTransform = function() {
+	var pixelRatio = this.map.frameState_.pixelRatio;
+	var viewState = this.map.frameState_.viewState;
+	return ol.vec.Mat4.makeTransform2D(this.transform_,
+	    this.mycontext.canvas.width / 2, this.mycontext.canvas.height / 2,
+	    pixelRatio / viewState.resolution, -pixelRatio / viewState.resolution,
+	    -viewState.rotation,
+	    -viewState.center[0], -viewState.center[1]);
+}
+
+ome.source.OmeroCanvas.prototype.myCanvasFunction = 
+	function(extent, resolution, pixelRatio, size, projection) {
+		//if (this.mycontext == null || this.mycontext.canvas.width != size[0] || this.mycontext.canvas.height != size[1])
+		//	this.mycontext = ol.dom.createCanvasContext2D(size[0], size[1]);
+		
+		// TODO: correct extent discrepancy 
+		//var transform = this.map.getRenderer().getTransform(this.map.frameState_);
+		//var transform = this.getTransform();
+		//var pixCoords = ol.geom.flat.transform.transform2D(
+		//	coords, 0, coords.length, 2, transform, this.transform_);
+		var pixCoords = this.map.getPixelFromCoordinate([8199, -5724]);
+		
+		 this.mycontext.beginPath();
+		 this.mycontext.arc(pixCoords[0], pixCoords[1], 70, 0, 2 * Math.PI, false);
+		 this.mycontext.fillStyle = 'green';
+		 this.mycontext.fill();
+		 this.mycontext.lineWidth = 5;
+		 this.mycontext.strokeStyle = '#003300';
+		 this.mycontext.stroke();
+		 
+		 return this.mycontext.canvas;
+}
+
+
+
+
+	
 goog.provide('ome.canvas.Interaction');
 
 ome.canvas.Interaction = function(opt_options) {
