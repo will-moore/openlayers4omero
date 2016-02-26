@@ -6,33 +6,66 @@ var app = function() {
 		init : function() {
 			app.fetchDatasets();
 		},
-		sendRequest : function(params, success, failure) {
-			if (params)
-				$.ajax(params).success(
-					function(data) {
-						success(data);
-					}).error(failure);
+		getCookie : function(name) {
+			if (typeof(name) != 'string')
+				return "";
+			
+		    var all = document.cookie.split(';');
+		    for(var i=0, ii = all.length;i<ii; i++) {
+		        var cookie = all[i];
+		        while (cookie.charAt(0)==' ') cookie = cookie.substring(1);
+		        if (cookie.indexOf(name + '=') == 0) return cookie.substring(name.length+1,cookie.length);
+		    }
+		    return "";
+		},
+		sendRequest : function(params) {
+			if (typeof(params) != 'object' || typeof(params['url']) != 'string') {
+				console.error("Could not send request without a url!");
+				return;
+			}
+			var url = params.url;
+			var method = (typeof(params['method']) == 'string') ? params.method.toUpperCase() : "GET";
+			var headers = (typeof(params['headers']) == 'object') ? params.headers : {};
+			var content = (typeof(params['content']) == 'string') ? params.content : null;
+			var timeout =  (typeof(params['content']) == 'number') ? params.timeout : 30 * 1000;
+			var success =  (typeof(params['success']) == 'function' ?
+				params.success : function(data) {console.info(data);});
+			var failure =  (typeof(params['failure']) == 'function' ?
+				params.failure : function(error) {console.error(error);});
+
+			goog.net.XhrIo.send(url, function(e) {
+			      var xhr = e.target;
+			      var contentType = xhr.getResponseHeaders()["Content-Type"];
+			      var content = (contentType && contentType.toLowerCase().indexOf('/json') >= 0) ?
+			    		  xhr.getResponseJson() : xhr.getResponseText();
+			      if (this.isSuccess()) success(content)
+			      else failure(content);
+			  }, method, content, headers);
 		},
 		fetchDatasets : function() {
-			var params = {url: 'datasets', dataType: 'json'};
-			var success = function(data) {
-				if (data && data.datasets && data.datasets.length == 0) {
-					console.error("No datasets found");
-				} else if (data && data.datasets) {
-					$("#annoying").remove();
-					app.populateImageList(data.datasets);
+			var params = {
+				url: 'datasets',
+				success: function(data) {
+					if (data && data.datasets && data.datasets.length == 0) {
+						console.error("No datasets found");
+					} else if (data && data.datasets) {
+						goog.dom.removeNode(
+							goog.dom.getElement("annoying"));
+						app.populateImageList(data.datasets);
+					}
 				}
 			};
-			var failure = function(error) {
-				console.error(error);
-			};
-			$("#ome_viewport").html('<h2 id="annoying">Loading Image List...</h2>');
-			app.sendRequest(params, success, failure);	
+			goog.dom.getElement("ome_viewport").appendChild(
+				goog.dom.createDom('H2', 
+					{'id' : 'annoying'},
+					'Loading Image List...'));
+			app.sendRequest(params);	
 		},
 		populateImageList : function(data) {
 			if (typeof(data) == 'undefined' || data == null)
 				return;
 			
+			var imgEl = goog.dom.getElement("ome_images");
 			var count = 0;
 			var selected = 0;
 			for (d in data)
@@ -42,16 +75,21 @@ var app = function() {
 							selected = data[d].images[i].id;
 						app.images[data[d].images[i].id] = data[d].images[i];
 						app.images[data[d].images[i].id].rois = null;
-						$('#ome_images').append('<option value="' + data[d].images[i].id +
-								'" selected="">' + data[d].images[i].name + '</option>');
+						
+						goog.dom.append(
+							imgEl, 
+							goog.dom.createDom('OPTION', 
+								{'value' : data[d].images[i].id, 'selected' : (count == 0) ? 'selected' : ''},
+								data[d].images[i].name));
+								
 						count++;
 					}
-			$('#ome_images').attr("size", count);
-			$('#ome_images').on("change", app.updateThumbnail);
-			$('#ome_images').on("dblclick", app.workWithImage);
-			$('#ome_images').val(selected).change();
-			$('#ome_images').show();
-			$('#ome_thumbnail').show();
+			imgEl.size = count;
+			goog.events.listen(imgEl, goog.events.EventType.CLICK, app.updateThumbnail);
+			goog.events.listen(imgEl, goog.events.EventType.DBLCLICK, app.workWithImage);
+			goog.style.setStyle(imgEl, "display", "block");
+			goog.style.setStyle(goog.dom.getElement("ome_thumbnail"), "display", "block");
+			imgEl.click();
 		},
 		initModifyMode : function() {
 			var source = new ol.source.Vector({});
@@ -159,19 +197,18 @@ var app = function() {
 		resetPlaneTimeChannelControls : function() {
 			var dim = ['z', 't', 'c'];
 			for (d in dim) {
-				var id = '#ome_' + dim[d] + '_index';
-				if ($(id) == null || $(id).length == 0)
+				var id = 'ome_' + dim[d] + '_index';
+				var idEl = goog.dom.getElement(id);
+				if (idEl == null)
 					continue;
-				$(id).off();
+				goog.events.removeAll(idEl);
 				if (dim[d] == 'c') {
-					$(id + ' option').each(function(index, option) {
-					    $(option).remove();
-					});
+					goog.dom.removeChildren(idEl);
 				} else {
-					$(id).attr("max", 0);
-					$(id).val(0);
+					idEl.max = 0;
+					idEl.value = 0;
 				}
-				$(id).hide();
+				goog.style.setStyle(idEl, "display", "none");
 			}
 		},
 		initPlaneTimeChannelControls : function(dims, selDs) {
@@ -183,41 +220,52 @@ var app = function() {
 			for (d in dims) {
 				if (typeof(dims[d].count) != 'number' || dims[d].count <= 1)
 					continue;
-				var id = '#ome_' + dims[d].name + '_index';
+				var id = 'ome_' + dims[d].name + '_index';
+				var idEl = goog.dom.getElement(id);
 				var dimCount = dims[d].count;
 
 				if (dims[d].name == 'c') {
 					var count=1;
-					$(id).append('<option value="0" selected="selected">default</option>');
+					goog.dom.append(
+						idEl, 
+						goog.dom.createDom('OPTION', 
+							{'value' : "0", 'selected' : 'selected'},
+							"default"));
+
 					for (i in selDs.channelLabels) {
-						$(id).append('<option value="' + count +
-								'" selected="">' + selDs.channelLabels[i] + '</option>');
+						goog.dom.append(
+								idEl, 
+								goog.dom.createDom('OPTION', 
+									{'value' : count, 'selected' : ''},
+									selDs.channelLabels[i]));
 						count++;
 					}
-					$(id).val(0);
+					idEl.value =0;
 				} else {
-					$(id).attr("max",--dimCount);
-					$(id).val(Math.ceil(--dimCount/2));
+					idEl.max = --dimCount;
+					idEl.value = Math.ceil(--dimCount/2);
 				}
-				$(id).show();
+				goog.style.setStyle(idEl, "display", "block");
 			
 				(function(_id) {
-					$(_id).on('change', function(event) {
-						var source = app.viewport.getLayers().item(0).get("source");
-						if (_id == '#ome_z_index')
-							source.setPlane(parseInt($(_id).val()));
-						else if (_id == '#ome_t_index')
-							source.setTime(parseInt($(_id).val()));
-						else if  (_id == '#ome_c_index')
-							source.setChannel(parseInt($(_id).val()));
-						source.forceRender();
+					goog.events.listen(idEl, goog.events.EventType.CHANGE,
+						function(event) {
+							var source = app.viewport.getLayers().item(0).get("source");
+							var _idEl = goog.dom.getElement(_id);
+							if (_id == 'ome_z_index')
+								source.setPlane(parseInt(_idEl.value));
+							else if (_id == 'ome_t_index')
+								source.setTime(parseInt(_idEl.value));
+							else if  (_id == 'ome_c_index')
+								source.setChannel(parseInt(_idEl.value));
+							source.forceRender();
 					})
 				})(id);
 			}
 		},
 		updateThumbnail : function(event) {
-			var selected = $("#ome_images option:selected").val();
-			$('#ome_thumbnail').attr("src", "thumbnail/" + selected)
+			var selected = goog.dom.getElement('ome_images').value;
+			goog.dom.getElement('ome_thumbnail').src = "thumbnail/" + selected;
 		},
 		prepareResolutionsArray : function(givenRes) {
 			// prepare resolutions for "single" images vs tiled/pyramids
@@ -267,7 +315,7 @@ var app = function() {
 			return newRes;
 		},
 		workWithImage : function(event) {
-			var selected = $("#ome_images option:selected").val();
+			var selected = goog.dom.getElement("ome_images").value;
 			
 			if (typeof(app.images[selected]) == 'undefined' || app.images[selected] == null)
 				alert('dataset' + selected + 'not found')
@@ -305,9 +353,9 @@ var app = function() {
 				image: selDs.id,
 				sizeX: width,
 				sizeY: height,
-				plane: planes > 1 ? parseInt($('#ome_z_index').val()) : 0,
-				time: times > 1 ? parseInt($('#ome_t_index').val()) : 0,
-				channel: channels > 1 ? parseInt($('#ome_c_index').val()) : 0,
+				plane: planes > 1 ? parseInt(goog.dom.getElement('ome_z_index').value) : 0,
+				time: times > 1 ? parseInt(goog.dom.getElement('ome_t_index').value) : 0,
+				channel: channels > 1 ? parseInt(goog.dom.getElement('ome_z_index').value) : 0,
 				resolutions: zoom > 1 ? selDs.zoomLevelScaling : [1]
 			});
 			
@@ -362,12 +410,12 @@ var app = function() {
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
 
 			// add custom canvas layer
-			//app.viewport.addLayer(
-			//	new ol.layer.Image({
-			//		source: new ome.source.OmeroCanvas({
-			//			map: app.viewport
-			//	})
-			//}));
+			app.viewport.addLayer(
+				new ol.layer.Image({
+					source: new ome.source.OmeroCanvas({
+						map: app.viewport
+				})
+			}));
 
 			
 			app.initModifyMode();
@@ -380,17 +428,16 @@ var app = function() {
 			}
 		},
 		dealWithRois : function(id) {
-			var params = {url: 'rois/' + id, dataType: 'json'};
-			var success = function(data) {
-				if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
-					console.error("roi request gave no array back");
+			var params = {
+				url: 'rois/' + id,
+				success: function(data) {
+					if (typeof(data) != 'object' || typeof(data.length) == 'undefined')
+						console.error("roi request gave no array back");
 
-				app.updateFeatures(id, data);
+					app.updateFeatures(id, data);
+				}
 			};
-			var failure = function(error) {
-				console.error(error);
-			};
-			app.sendRequest(params, success, failure);	
+			app.sendRequest(params);	
 		},
 		updateFeatures(id, data) {
 			var source = 
@@ -470,29 +517,26 @@ var app = function() {
 				return;
 			var conFeat = app.convertFeature(feature);
 			
-			
+			var csrftoken  = app.getCookie("csrftoken");
 			var params = {
-				url: 'addrois/' + imageId, method: 'POST', dataType: 'json',
-				 	contentType: 'application/json; charset=utf-8',
-				 	processData: false,
-				 	data: JSON.stringify(conFeat)};
-			var success = function(data) {
-				if (typeof(data) == 'Array' || typeof(data) == 'object') {
-					app.updateFeatures(imageId, data);
-					return;
+				url: 'addrois/' + imageId,
+				method: 'POST', 
+				content: JSON.stringify(conFeat),
+				headers: {"X-CSRFToken" : csrftoken},
+				success: function(data) {
+					if (typeof(data) == 'Array' || typeof(data) == 'object') {
+						app.updateFeatures(imageId, data);
+						return;
+					}
+					var source = 
+						app.viewport.getLayers().item(
+							app.viewport.getLayers().getLength()-1).getSource();
+					source.removeFeature(feature);
+					source.changed();
+					console.error("Failed to store feature");
 				}
-				var source = 
-					app.viewport.getLayers().item(
-						app.viewport.getLayers().getLength()-1).getSource();
-				source.removeFeature(feature);
-				source.changed();
-				console.error("Failed to store feature");
 			};
-			var failure = function(error) {
-				if (error && error.responseText) console.error(error.responseText);
-				else console.error(error);
-			};
-			app.sendRequest(params, success, failure);
+			app.sendRequest(params);
 		}, updateRoi : function(feature) {
 			if (typeof(feature) != 'object')
 				return;

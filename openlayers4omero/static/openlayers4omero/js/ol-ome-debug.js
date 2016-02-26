@@ -170,46 +170,133 @@ ome.source.OmeroCanvas = function(options) {
 		canvasFunction: ome.source.OmeroCanvas.prototype.myCanvasFunction,
 		projection : this.map ? this.map.getView().getProjection() : null
 	});
-	if (this.map)
-		this.mycontext = ol.dom.createCanvasContext2D(
-				this.map.getRenderer().canvas_.width, this.map.getRenderer().canvas_.height);
 }
 goog.inherits(ome.source.OmeroCanvas, ol.source.ImageCanvas);
 
-ome.source.OmeroCanvas.prototype.getTransform = function() {
-	var pixelRatio = this.map.frameState_.pixelRatio;
-	var viewState = this.map.frameState_.viewState;
-	return ol.vec.Mat4.makeTransform2D(this.transform_,
-	    this.mycontext.canvas.width / 2, this.mycontext.canvas.height / 2,
-	    pixelRatio / viewState.resolution, -pixelRatio / viewState.resolution,
-	    -viewState.rotation,
-	    -viewState.center[0], -viewState.center[1]);
+ome.source.OmeroCanvas.prototype.drawEllipse = function(
+	ctx, cx, cy, rx, ry, rot, step) {
+	//http://www.tinaja.com/glib/ellipse4.pdf
+	//http://scienceprimer.com/draw-oval-html5-canvas
+	
+	var angle = rot || 0;
+	var inc = step || 0.01;
+	ctx.beginPath();
+	
+	for (var i = 0 * Math.PI, ii=2*Math.PI; i < ii; i += inc ) {
+		xPos = cx - (ry * Math.sin(i)) * Math.sin(angle * Math.PI) +
+			(rx * Math.cos(i)) * Math.cos(angle * Math.PI);
+		yPos = cy + (rx * Math.cos(i)) * Math.sin(angle * Math.PI) + 
+			(ry * Math.sin(i)) * Math.cos(angle * Math.PI);
+
+		if (i == 0) ctx.moveTo(xPos, yPos);
+		else ctx.lineTo(xPos, yPos);
+	}
+	ctx.strokeStyle = "rgba(255, 0, 0, 0.765625)";
+	ctx.fillStyle = "rgba(0, 255,255, 0.640625)";
+	ctx.stroke();
+	ctx.fill();
 }
 
 ome.source.OmeroCanvas.prototype.myCanvasFunction = 
 	function(extent, resolution, pixelRatio, size, projection) {
-		//if (this.mycontext == null || this.mycontext.canvas.width != size[0] || this.mycontext.canvas.height != size[1])
-		//	this.mycontext = ol.dom.createCanvasContext2D(size[0], size[1]);
+		var mycontext = ol.dom.createCanvasContext2D(size[0], size[1]);
 		
-		// TODO: correct extent discrepancy 
-		//var transform = this.map.getRenderer().getTransform(this.map.frameState_);
-		//var transform = this.getTransform();
-		//var pixCoords = ol.geom.flat.transform.transform2D(
-		//	coords, 0, coords.length, 2, transform, this.transform_);
-		var pixCoords = this.map.getPixelFromCoordinate([8199, -5724]);
+		// draw an ellipse in the first quadrant of the image
+		var worldExtent = projection.getExtent();
+		var w = worldExtent[2]-worldExtent[0];
+		var h = worldExtent[3]-worldExtent[1];
+		var coords = [14207.5, -4885.5];
+		var pixCoords = this.map.getPixelFromCoordinate(coords);
 		
-		 this.mycontext.beginPath();
-		 this.mycontext.arc(pixCoords[0], pixCoords[1], 70, 0, 2 * Math.PI, false);
-		 this.mycontext.fillStyle = 'green';
-		 this.mycontext.fill();
-		 this.mycontext.lineWidth = 5;
-		 this.mycontext.strokeStyle = '#003300';
-		 this.mycontext.stroke();
-		 
-		 return this.mycontext.canvas;
+		mycontext.save();
+		this.drawEllipse(mycontext,pixCoords[0], pixCoords[1], 897.5 / resolution, 601.5 / resolution);
+		mycontext.restore();
+		/*
+		var radius = 100;
+		if (resolution != 1) {
+			radius /= resolution;
+			radius = radius < 0.5 ? 1 : Math.round(radius);
+		}
+		var strokeWidth = 5;
+		if (resolution != 1) {
+			strokeWidth /= resolution;
+			strokeWidth = strokeWidth < 0.5 ? 1 : Math.round(strokeWidth);
+		}
+		
+		 mycontext.beginPath();
+		 mycontext.arc(pixCoords[0], pixCoords[1], radius, 0, 2 * Math.PI, false);
+		 mycontext.fillStyle = 'green';
+		 mycontext.fill();
+		 mycontext.lineWidth = strokeWidth;
+		 mycontext.strokeStyle = '#003300';
+		 mycontext.stroke();
+		 */
+		 return mycontext.canvas;
 }
 
+ome.source.OmeroCanvas.prototype.getImageInternal = function(extent, resolution, pixelRatio, projection) {
+	  resolution = this.findNearestResolution(resolution);
 
+	  var canvas = this.canvas_;
+	  if (canvas &&
+	      this.renderedRevision_ == this.getRevision() &&
+	      canvas.getResolution() == resolution &&
+	      canvas.getPixelRatio() == pixelRatio &&
+	      ol.extent.containsExtent(canvas.getExtent(), extent)) {
+	    return canvas;
+	  }
+
+	  var size = [this.map.getRenderer().canvas_.width,this.map.getRenderer().canvas_.height];
+	  var canvasElement = this.canvasFunction_(
+	      extent, resolution, pixelRatio, size, projection);
+	  if (canvasElement) {
+	    canvas = new ol.ImageCanvas(extent, resolution, pixelRatio,
+	        this.getAttributions(), canvasElement);
+	  }
+	  this.canvas_ = canvas;
+	  this.renderedRevision_ = this.getRevision();
+
+	  return canvas;
+};
+
+ome.source.OmeroCanvas.prototype.getImage = function(extent, resolution, pixelRatio, projection) {
+	  var sourceProjection = this.getProjection();
+	  // the next line is a hack,
+	  // we need to reproject for the overview...
+	  projection = sourceProjection;
+	  if (!ol.ENABLE_RASTER_REPROJECTION ||
+	      !sourceProjection ||
+	      !projection ||
+	      ol.proj.equivalent(sourceProjection, projection)) {
+	    if (sourceProjection) {
+	      projection = sourceProjection;
+	    }
+	    return this.getImageInternal(extent, resolution, pixelRatio, projection);
+	  } else {
+	    if (this.reprojectedImage_) {
+	      if (this.reprojectedRevision_ == this.getRevision() &&
+	          ol.proj.equivalent(
+	              this.reprojectedImage_.getProjection(), projection) &&
+	          this.reprojectedImage_.getResolution() == resolution &&
+	          this.reprojectedImage_.getPixelRatio() == pixelRatio &&
+	          ol.extent.equals(this.reprojectedImage_.getExtent(), extent)) {
+	        return this.reprojectedImage_;
+	      }
+	      this.reprojectedImage_.dispose();
+	      this.reprojectedImage_ = null;
+	    }
+
+	    this.reprojectedImage_ = new ol.reproj.Image(
+	        sourceProjection, projection, extent, resolution, pixelRatio,
+	        function(extent, resolution, pixelRatio) {
+	          return this.getImageInternal(extent, resolution,
+	              pixelRatio, sourceProjection);
+	        }.bind(this));
+	    this.reprojectedRevision_ = this.getRevision();
+
+	    return this.reprojectedImage_;
+	  }
+	};
 
 
 	
@@ -530,7 +617,20 @@ ome.control.Draw.prototype.drawRectangle_ = function(event) {
 	this.drawShapeCommonCode_('Circle', function(event) {
 		if (event.feature)
 			event.feature.getGeometry().type = "Rectangle";
-		this.activateDraw(false, true);}, 
+		this.activateDraw(false, true);
+		
+		event.feature.setStyle(
+			new ol.style.Style({
+				fill: new ol.style.Fill({
+					color: 'rgba(255, 255, 255, 0.2)'
+				}),
+				stroke: new ol.style.Stroke({
+					color: '#ffcc33',
+					width: 2
+				})
+			}));
+		app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
+	}, 
 		ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4));
 };
 
