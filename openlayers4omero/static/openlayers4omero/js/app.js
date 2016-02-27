@@ -355,7 +355,7 @@ var app = function() {
 				sizeY: height,
 				plane: planes > 1 ? parseInt(goog.dom.getElement('ome_z_index').value) : 0,
 				time: times > 1 ? parseInt(goog.dom.getElement('ome_t_index').value) : 0,
-				channel: channels > 1 ? parseInt(goog.dom.getElement('ome_z_index').value) : 0,
+				channel: channels > 1 ? parseInt(goog.dom.getElement('ome_c_index').value) : 0,
 				resolutions: zoom > 1 ? selDs.zoomLevelScaling : [1]
 			});
 			
