@@ -410,13 +410,14 @@ var app = function() {
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
 
 			// add custom canvas layer
+			/*
 			app.viewport.addLayer(
 				new ol.layer.Image({
 					source: new ome.source.OmeroCanvas({
 						map: app.viewport
 				})
 			}));
-
+			*/
 			
 			app.initModifyMode();
 			
@@ -464,8 +465,11 @@ var app = function() {
 					// we immediately override the given style with a function so that text is scaled 
 						(function(style) {
 							actFeat.setStyle(function(resolution) {
-								if (style.getText())
-									style.getText().setScale(1/resolution);
+								var textStyle = style.getText();
+								if (textStyle) {
+									var newScale = 1/resolution;
+									textStyle.setScale(newScale);
+								}
 								return style;
 							});
 						})(actFeat.getStyle());
@@ -602,30 +606,34 @@ var app = function() {
 			ret |= parseInt("0x" + alpha + red + green + blue, 16);
 			return ret;
 		},
-		createRectangleGeometry : function(shape) {
-			// TODO: do this proper with ol class hierarchy
-			var ret =
-				new ol.geom.Polygon(
-					[[[shape.x, -shape.y],
-					 [shape.x+shape.width, -shape.y],
-					 [shape.x+shape.width, -shape.y-shape.height],
-					 [shape.x, -shape.y-shape.height],
-					 [shape.x, -shape.y]
-					]],ol.geom.GeometryLayout.XY);
-			ret.type = "Rectangle";
-			return ret;
-		},
 		roiRenderHandler : {
+			"Ellipse" : function(shape) {
+				var feat = new ol.Feature({geometry : 
+					ome.source.OmeroCanvas.createEllipseGeometry(
+						shape.cx, -shape.cy, shape.rx, shape.ry)});
+				feat.setStyle(app.createFeatureStyle(shape));
+				return feat;
+			}, 
 			"Rectangle" : function(shape) {
-				var feat = new ol.Feature({geometry : app.createRectangleGeometry(shape)});
+				var feat = new ol.Feature({geometry : 
+					ome.source.OmeroCanvas.createRectangleGeometry(
+						shape.x, shape.y, shape.width, shape.height)});
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
 			}, "Label" : function(shape) {
-				shape.width = 50; shape.height = 20;
-				var geom = app.createRectangleGeometry(shape);
+				if (typeof(shape.fontSize) == 'string') {
+					try {
+						shape.fontSize = parseInt(shape.fontSize);
+					} catch(overruled) {
+						shape.fontSize = 20;
+					} 
+				}
+				shape.height = shape.fontSize;
+				shape.width = shape.textValue.length * parseInt(shape.height / 1.5); 
+				var geom = new ol.geom.Circle([shape.x, -shape.y], 10);
 				geom.isLabel = true;
 				var feat = new ol.Feature({geometry : geom});
-				feat.setStyle(app.createFeatureStyle(shape));
+				feat.setStyle(app.createFeatureStyle(shape, geom.isLabel));
 				return feat;
 			}, "Polygon" : function(shape) {
 				if (typeof(shape.points) != 'string' || shape.points.length == 0)
@@ -667,9 +675,9 @@ var app = function() {
 				feat.setStyle(app.createFeatureStyle(shape));
 				return feat;
 			}
-		}, createFeatureStyle : function(shape) {
+		}, createFeatureStyle : function(shape, isLabel) {
 			if (typeof(shape) != 'object') return null;
-			var forLabel = (typeof(shape.isLabel) != 'boolean') ? shape.isLabel : false;
+			var forLabel = (typeof(isLabel) == 'boolean') ? isLabel : false;
 			
 			var stroke = {count : 0};
 			var fill = {count : 0};
@@ -692,11 +700,9 @@ var app = function() {
 				stroke.width = shape.strokeWidth;
 				stroke.count++;
 			}
-			if (shape.textValue)
-				fill.color = stroke.color
 				
-			stroke = (stroke.count > 0) ? new ol.style.Stroke(stroke) : null;
-			fill = (fill.count > 0) ? new ol.style.Fill(fill) : null;
+			strokeStyle = (stroke.count > 0) ? new ol.style.Stroke(stroke) : null;
+			fillStyle = (fill.count > 0) ? new ol.style.Fill(fill) : null;
 			
 			var style = {};
 			if (shape.textValue) {
@@ -706,16 +712,20 @@ var app = function() {
 				if (shape.fontSize) font += (shape.fontSize + "px ");	
 				if (shape.fontFamily) font += shape.fontFamily;	
 				text.font = font;
-				if (fill) text.fill = fill;
-				if (stroke) text.stroke = stroke
-				text.textBaseline = 'top';
-				text.textAlign = 'left';
+				if (fillStyle) text.fill = new ol.style.Fill(stroke);
+				if (strokeStyle) text.stroke = strokeStyle
+				if (forLabel) {
+					text.textAlign = 'left';
+					text.textBaseline = 'top';
+				}
 				style.text = new ol.style.Text(text);
+			}
+			
+			if (strokeStyle) style.stroke = strokeStyle;
+			if (fillStyle) style.fill = fillStyle;
+			if (forLabel) {
 				style.stroke = new ol.style.Stroke({color: "rgba(255,255,255,0)", width: 1});
 				style.fill = new ol.style.Fill({color: "rgba(255,255,255,0)"});
-			} else {
-				if (stroke) style.stroke = stroke;
-				if (fill) style.fill = fill;
 			}
 			
 			return new ol.style.Style(style);

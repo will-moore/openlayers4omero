@@ -173,6 +173,40 @@ ome.source.OmeroCanvas = function(options) {
 }
 goog.inherits(ome.source.OmeroCanvas, ol.source.ImageCanvas);
 
+ome.source.OmeroCanvas.createEllipseGeometry = function(cx, cy, rx, ry) {
+	// TODO: do this proper within the ol class hierarchy
+	var coords = [];
+	var angle = 0;
+	for (var i = 0 * Math.PI, ii=2*Math.PI; i < ii; i += 0.1 ) {
+		xPos = cx - (ry * Math.sin(i)) * Math.sin(angle * Math.PI) +
+			(rx * Math.cos(i)) * Math.cos(angle * Math.PI);
+		yPos = cy + (rx * Math.cos(i)) * Math.sin(angle * Math.PI) + 
+			(ry * Math.sin(i)) * Math.cos(angle * Math.PI);
+
+		coords.push([xPos, yPos]);
+	}
+	coords.push[coords[0]];
+	var geom = new ol.geom.Polygon([coords]);
+	geom.type = "Ellipse";
+	return geom;
+}
+
+ome.source.OmeroCanvas.createRectangleGeometry =  function(x, y, w, h) {
+	// TODO: do this proper within the ol class hierarchy
+	var geom = new ol.geom.Polygon(
+			[[[x, -y],
+			 [x+w, -y],
+			 [x+w, -y-h],
+			 [x, -y-h],
+			 [x, -y]
+			]],ol.geom.GeometryLayout.XY);
+	geom.type = "Rectangle";
+	geom.width = w;
+	geom.height = h;
+	
+	return geom;
+}
+
 ome.source.OmeroCanvas.prototype.drawEllipse = function(
 	ctx, cx, cy, rx, ry, rot, step) {
 	//http://www.tinaja.com/glib/ellipse4.pdf
@@ -451,8 +485,18 @@ goog.events.listen(circleElement,
 goog.events.EventType.CLICK, goog.partial(
     ome.control.Draw.prototype.drawCircle_), false, this);
 
+var ellipseElement = goog.dom.createDom('BUTTON', {
+    'class': className + '-ellipse',
+    'type' : 'button',
+    'title': 'Draw Ellipse'
+  }, '[E]');
+
+goog.events.listen(ellipseElement,
+goog.events.EventType.CLICK, goog.partial(
+    ome.control.Draw.prototype.drawEllipse_), false, this);
+
 var drawBar = goog.dom.createDom('DIV', className + '-bar left',  
-	rectElement, polyElement, lineElement, pointElement, circleElement);
+	rectElement, polyElement, lineElement, pointElement, circleElement, ellipseElement);
 
 var textFont = goog.dom.createDom('INPUT', 
 	{'title': 'Font Family', 'id' : 'featFont', 'type' : 'text', 'style' : 'margin-top: 3px;width:150px'});
@@ -634,10 +678,37 @@ ome.control.Draw.prototype.drawRectangle_ = function(event) {
 		ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4));
 };
 
+ome.control.Draw.prototype.drawEllipse_ = function(event) {
+	alert("Not implemented yet");
+	return;
+	
+	this.drawShapeCommonCode_('Polygon', function(event) {
+		if (event.feature)
+			event.feature.getGeometry().type = "Ellipse";
+		this.activateDraw(false, true);
+		
+		event.feature.setStyle(
+			new ol.style.Style({
+				fill: new ol.style.Fill({
+					color: 'rgba(255, 255, 255, 0.2)'
+				}),
+				stroke: new ol.style.Stroke({
+					color: '#ffcc33',
+					width: 2
+				})
+			}));
+		app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
+	}, // TODO: implement drawing
+	ome.source.OmeroCanvas.createEllipseGeometry());
+};
+
 ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 	var selectedFeatures = this.getMap().getSelectedFeatures();
 	if (selectedFeatures.getLength() == 0) return;
 	
+	var selGeom = selectedFeatures.item(0).getGeometry();
+	var is_label = typeof(selGeom.isLabel) == 'boolean' ? selGeom.isLabel : false;
+		
 	var textStyle = null;
 	var text = goog.dom.getElement("featText").value;
 	if (text && text.replace(/\s/g, '').length > 0) {
@@ -657,6 +728,20 @@ ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 		if (fontFamily.length > 0) font += fontFamily
 		else font += "Arial";
 		textStyle.setFont(font);
+		if (is_label) {
+			//selGeom =
+			//	ome.source.OmeroCanvas.createRectangleGeometry(
+			//		selGeom.getCoordinates()[0][0][0], -selGeom.getCoordinates()[0][0][1],
+			//		text.length * parseInt(fontSize / 1.5), fontSize);
+			//selectedFeatures.item(0).setGeometry(newSel);
+			//TODO: update geom
+			// rtree
+			//selGeom.height = shape.fontSize;
+			//selGeom.width = shape.textValue.length * parseInt(shape.height / 1.5); 
+			//var geom = app.createRectangleGeometry(shape);			
+			textStyle.setTextAlign('left');
+			textStyle.setTextBaseline('top');
+		}
 	}
 	var fill = null;
 	var fillColor = goog.dom.getElement("fillColor").value;
@@ -675,25 +760,26 @@ ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 		});
 	} catch (ignored) {}
 	
-	
 	if (textStyle == null && fill == null && stroke == null)
 		return;
 		
 	var updatedStyleFunc = function(isLabel) {
-		if (textStyle) {
-			textStyle.setStroke(stroke);
+		if (textStyle) textStyle.setStroke(stroke);
+		
+		if (isLabel) {
 			textStyle.setFill(fill);
-		}
-		if (!isLabel) {
 			return new ol.style.Style({
-				text : textStyle,
-				fill : fill,
-				stroke : stroke});
-		}
-		return new ol.style.Style({
 				text : textStyle,
 				fill : new ol.style.Fill({color: "rgba(255,255,255,0)"}),
 				stroke : new ol.style.Stroke({color: "rgba(255,255,255,0)", width: 1}) });
+		}
+
+		if (textStyle) textStyle.setFill(new ol.style.Fill({color: stroke.getColor()}));
+		return new ol.style.Style({
+			text : textStyle,
+			fill : fill,
+			stroke : stroke});
+
 	};
 	selectedFeatures.forEach(function(feature) {
 		var isLabel = (typeof(feature.getGeometry().isLabel) === 'boolean') ? feature.getGeometry().isLabel : false;
@@ -701,9 +787,9 @@ ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 		// we need to use a style function to scale text appropriately
 		feature.setStyle(function(resolution) {
 			var innerStyle = updatedStyle;
-			if (innerStyle && innerStyle.getText())
+			if (innerStyle && innerStyle.getText()) 
 				innerStyle.getText().setScale(1/resolution);
-			return innerStyle;
+			return innerStyle;		
 		});
 	});		
 };
