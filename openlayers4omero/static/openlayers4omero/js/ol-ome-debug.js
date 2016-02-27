@@ -698,7 +698,8 @@ ome.control.Draw.prototype.drawEllipse_ = function(event) {
 				})
 			}));
 		app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
-	}, // TODO: implement drawing
+	}, // TODO: implement drawing/modification of ellipse // note: use rectangle with ellipse inscribed
+	
 	ome.source.OmeroCanvas.createEllipseGeometry());
 };
 
@@ -729,16 +730,6 @@ ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
 		else font += "Arial";
 		textStyle.setFont(font);
 		if (is_label) {
-			//selGeom =
-			//	ome.source.OmeroCanvas.createRectangleGeometry(
-			//		selGeom.getCoordinates()[0][0][0], -selGeom.getCoordinates()[0][0][1],
-			//		text.length * parseInt(fontSize / 1.5), fontSize);
-			//selectedFeatures.item(0).setGeometry(newSel);
-			//TODO: update geom
-			// rtree
-			//selGeom.height = shape.fontSize;
-			//selGeom.width = shape.textValue.length * parseInt(shape.height / 1.5); 
-			//var geom = app.createRectangleGeometry(shape);			
 			textStyle.setTextAlign('left');
 			textStyle.setTextBaseline('top');
 		}
