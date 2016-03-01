@@ -418,6 +418,31 @@ var app = function() {
 				})
 			}));
 			*/
+
+			// add custom svg layer as overlay
+			/*
+			var canvasSize = [app.viewport.getRenderer().canvas_.width,app.viewport.getRenderer().canvas_.height];
+			var imageExtent = app.viewport.getView().getProjection().getExtent();
+			var svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			svgOverlay.setAttribute('width', "" + imageExtent[2] + "px");
+			svgOverlay.setAttribute('height', "" + imageExtent[3] + "px");
+			
+			  var el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+			  el.setAttribute('cx', "100px");
+			  el.setAttribute('cy', "100px");
+			  el.setAttribute('scale', 1/app.viewport.getView().getResolution());
+			  el.setAttribute('r', "50px");
+			  el.setAttribute('fill', '#223FA3');
+			  el.setAttribute('stroke-width', '1px');
+			  el.setAttribute('stroke', 'black');
+			  svgOverlay.appendChild(el)
+			  
+			var svgOl = new ol.Overlay({
+				position: [0,0],
+				element: svgOverlay,
+				stopEvent: false});
+			app.viewport.addOverlay(svgOl);
+			*/
 			
 			app.initModifyMode();
 			

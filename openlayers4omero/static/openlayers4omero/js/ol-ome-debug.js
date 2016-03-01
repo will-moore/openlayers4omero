@@ -188,6 +188,8 @@ ome.source.OmeroCanvas.createEllipseGeometry = function(cx, cy, rx, ry) {
 	coords.push[coords[0]];
 	var geom = new ol.geom.Polygon([coords]);
 	geom.type = "Ellipse";
+	geom.cx = cx;
+	geom.cy = cy;
 	return geom;
 }
 
@@ -679,9 +681,6 @@ ome.control.Draw.prototype.drawRectangle_ = function(event) {
 };
 
 ome.control.Draw.prototype.drawEllipse_ = function(event) {
-	alert("Not implemented yet");
-	return;
-	
 	this.drawShapeCommonCode_('Polygon', function(event) {
 		if (event.feature)
 			event.feature.getGeometry().type = "Ellipse";
@@ -699,8 +698,18 @@ ome.control.Draw.prototype.drawEllipse_ = function(event) {
 			}));
 		app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
 	}, // TODO: implement drawing/modification of ellipse // note: use rectangle with ellipse inscribed
-	
-	ome.source.OmeroCanvas.createEllipseGeometry());
+    function(coordinates, opt_geometry) {
+		// TODO: make this work
+        var center = coordinates[0];
+        var end = coordinates[1];
+        if (end[0] == center[0] && end[1] == center[1])
+        	end = [center[0] + 1, center[1] + 1];
+        
+        var geometry = ome.source.OmeroCanvas.createEllipseGeometry(
+        	center[0], center[1], 
+        	Math.abs(center[0]-end[0]), Math.abs(center[1]- end[1]));
+        return geometry;
+      });
 };
 
 ome.control.Draw.prototype.updateFeatureProperties_ = function(event) {
@@ -970,7 +979,14 @@ ome.interaction.Modify.handleDragEvent_ = function(evt) {
     	  coordinates[depth[0]][4] = vertex;
     	  segment[index] = geometry.getExtent().slice(index*2, (index+1)*2);
           break;
-        
+      case "Ellipse":
+    	  var resolution = this.getMap().getView().getResolution();
+    	  var tmp = ome.source.OmeroCanvas.createEllipseGeometry(
+    			geometry.cx, geometry.cy,
+    			Math.abs(geometry.cx-vertex[0]), Math.abs(geometry.cy- vertex[1]));
+    	  coordinates = tmp.getCoordinates();
+    	break
+    	
       default:
         // pass
     }
@@ -988,7 +1004,7 @@ ome.interaction.Modify.handleUpEvent_ = function(evt) {
     segmentData = this.dragSegments_[i][0];
     
     var type = segmentData.geometry.type || segmentData.geometry.getType();
-    if (type === 'Rectangle') {
+    if (type === 'Rectangle' || type === 'Ellipse') {
     	this.rBush_.clear();
     	this.writePolygonGeometry_(segmentData.feature, segmentData.geometry);
     } else
