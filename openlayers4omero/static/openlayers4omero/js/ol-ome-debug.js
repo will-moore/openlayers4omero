@@ -245,33 +245,14 @@ ome.source.OmeroCanvas.prototype.myCanvasFunction =
 		var worldExtent = projection.getExtent();
 		var w = worldExtent[2]-worldExtent[0];
 		var h = worldExtent[3]-worldExtent[1];
-		var coords = [14207.5, -4885.5];
+		var coords = [w / 4, -h / 4];
 		var pixCoords = this.map.getPixelFromCoordinate(coords);
 		
 		mycontext.save();
-		this.drawEllipse(mycontext,pixCoords[0], pixCoords[1], 897.5 / resolution, 601.5 / resolution);
+		this.drawEllipse(mycontext,pixCoords[0], pixCoords[1], pixCoords[0] / resolution, pixCoords[1] / resolution);
 		mycontext.restore();
-		/*
-		var radius = 100;
-		if (resolution != 1) {
-			radius /= resolution;
-			radius = radius < 0.5 ? 1 : Math.round(radius);
-		}
-		var strokeWidth = 5;
-		if (resolution != 1) {
-			strokeWidth /= resolution;
-			strokeWidth = strokeWidth < 0.5 ? 1 : Math.round(strokeWidth);
-		}
-		
-		 mycontext.beginPath();
-		 mycontext.arc(pixCoords[0], pixCoords[1], radius, 0, 2 * Math.PI, false);
-		 mycontext.fillStyle = 'green';
-		 mycontext.fill();
-		 mycontext.lineWidth = strokeWidth;
-		 mycontext.strokeStyle = '#003300';
-		 mycontext.stroke();
-		 */
-		 return mycontext.canvas;
+
+		return mycontext.canvas;
 }
 
 ome.source.OmeroCanvas.prototype.getImageInternal = function(extent, resolution, pixelRatio, projection) {

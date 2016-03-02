@@ -404,35 +404,37 @@ var app = function() {
 			} else {
 				app.resetDrawMode();
 				app.viewport.getLayers().clear();
+				app.viewport.getOverlays().clear();
 				app.viewport.addLayer(new ol.layer.Tile({source: source, preload: Infinity}));
 				app.viewport.setView(view);
 			}
 			app.viewport.addInteraction(new ol.interaction.DragRotate({condition: ol.events.condition.shiftKeyOnly}));
 
 			// add custom canvas layer
-			/*
 			app.viewport.addLayer(
 				new ol.layer.Image({
 					source: new ome.source.OmeroCanvas({
 						map: app.viewport
 				})
 			}));
-			*/
 
 			// add custom svg layer as overlay
-			/*
-			var canvasSize = [app.viewport.getRenderer().canvas_.width,app.viewport.getRenderer().canvas_.height];
 			var imageExtent = app.viewport.getView().getProjection().getExtent();
+			var res = app.viewport.getView().getResolution();
+			var svgDims = [imageExtent[2] / res, imageExtent[3] / res];
 			var svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-			svgOverlay.setAttribute('width', "" + imageExtent[2] + "px");
-			svgOverlay.setAttribute('height', "" + imageExtent[3] + "px");
+			svgOverlay.setAttribute('width',  svgDims[0]);
+			svgOverlay.setAttribute('height',  svgDims[1]);
+			//svgOverlay.setAttribute('style', 'pointer-events: none;');
+			svgOverlay.setAttribute('class', 'ol-unselectable');
+			svgOverlay.setAttribute('viewBox', "0 0 " + imageExtent[2] + " " + imageExtent[3]);
 			
 			  var el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-			  el.setAttribute('cx', "100px");
-			  el.setAttribute('cy', "100px");
-			  el.setAttribute('scale', 1/app.viewport.getView().getResolution());
-			  el.setAttribute('r', "50px");
+			  el.setAttribute('cx', imageExtent[2] / 2);
+			  el.setAttribute('cy', imageExtent[3] / 2);
+			  el.setAttribute('r', imageExtent[2] / 4);
 			  el.setAttribute('fill', '#223FA3');
+			  el.setAttribute('fill-opacity', "0.4");
 			  el.setAttribute('stroke-width', '1px');
 			  el.setAttribute('stroke', 'black');
 			  svgOverlay.appendChild(el)
@@ -441,8 +443,22 @@ var app = function() {
 				position: [0,0],
 				element: svgOverlay,
 				stopEvent: false});
+			
 			app.viewport.addOverlay(svgOl);
-			*/
+			
+			var changeListener = function(evt) {
+				var newRes = evt.target.getResolution();
+				if (newRes != evt.oldValue) {
+					var imageExtent = app.viewport.getView().getProjection().getExtent();
+					var viewDims = [imageExtent[2] / newRes, imageExtent[3] / newRes];
+					svgOverlay.setAttribute('width', viewDims[0]);
+					svgOverlay.setAttribute('height',viewDims[1]);
+				}
+				
+			}
+			goog.events.listen(
+				svgOl.getMap().getView(), "change:resolution",
+				changeListener, false, svgOl);
 			
 			app.initModifyMode();
 			
