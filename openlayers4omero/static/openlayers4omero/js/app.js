@@ -554,6 +554,10 @@ var app = function() {
 				headers: {"X-CSRFToken" : csrftoken},
 				success: function(data) {
 					if (typeof(data) == 'Array' || typeof(data) == 'object') {
+						if (data.error) {
+							console.error(data.error);
+							return;
+						}
 						app.updateFeatures(imageId, data);
 						return;
 					}

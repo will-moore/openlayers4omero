@@ -186,10 +186,14 @@ ome.source.OmeroCanvas.createEllipseGeometry = function(cx, cy, rx, ry) {
 		coords.push([xPos, yPos]);
 	}
 	coords.push[coords[0]];
+
 	var geom = new ol.geom.Polygon([coords]);
 	geom.type = "Ellipse";
 	geom.cx = cx;
 	geom.cy = cy;
+	geom.rx = rx;
+	geom.ry = ry;
+
 	return geom;
 }
 
@@ -675,13 +679,13 @@ ome.control.Draw.prototype.drawRectangle_ = function(event) {
 					width: 2
 				})
 			}));
-		app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
+		//app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
 	}, 
 		ol.interaction.Draw.createRegularPolygon(4, Math.PI / 4));
 };
 
 ome.control.Draw.prototype.drawEllipse_ = function(event) {
-	this.drawShapeCommonCode_('Polygon', function(event) {
+	this.drawShapeCommonCode_('Circle', function(event) {
 		if (event.feature)
 			event.feature.getGeometry().type = "Ellipse";
 		this.activateDraw(false, true);
@@ -696,18 +700,21 @@ ome.control.Draw.prototype.drawEllipse_ = function(event) {
 					width: 2
 				})
 			}));
-		app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
-	}, // TODO: implement drawing/modification of ellipse // note: use rectangle with ellipse inscribed
+		//app.addRoi(event.feature, app.viewport.getLayers().item(0).getSource().getImageId());
+	}, 
     function(coordinates, opt_geometry) {
-		// TODO: make this work
         var center = coordinates[0];
         var end = coordinates[1];
-        if (end[0] == center[0] && end[1] == center[1])
-        	end = [center[0] + 1, center[1] + 1];
-        
+        var rx = Math.abs(center[0]-end[0]);
+        var ry =  Math.abs(center[1]- end[1]);
         var geometry = ome.source.OmeroCanvas.createEllipseGeometry(
-        	center[0], center[1], 
-        	Math.abs(center[0]-end[0]), Math.abs(center[1]- end[1]));
+        	center[0], center[1], rx,ry);
+        
+        if (opt_geometry) {
+        	opt_geometry.setCoordinates(geometry.getCoordinates());
+        	opt_geometry.rx = geometry.rx;
+        	opt_geometry.ry = geometry.ry;
+        }
         return geometry;
       });
 };
