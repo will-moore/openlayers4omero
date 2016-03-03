@@ -43,8 +43,12 @@ var app = function() {
 			  }, method, content, headers);
 		},
 		fetchDatasets : function() {
+			var url = 'datasets';
+			if (window.location.search.indexOf('datasetId')) {
+				url += window.location.search;
+			}
 			var params = {
-				url: 'datasets',
+				url: url,
 				success: function(data) {
 					if (data && data.datasets && data.datasets.length == 0) {
 						console.error("No datasets found");

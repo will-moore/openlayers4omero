@@ -25,8 +25,11 @@ class App:
  
         return ret
     
-    def listDatasets(self):
-        datasets = self._connection.getObjects('Dataset')
+    def listDatasets(self, datasetId=None):
+        if datasetId is not None:
+            datasets = [self._connection.getObject('Dataset', datasetId)]
+        else:
+            datasets = self._connection.getObjects('Dataset')
         ret = []
         for dataset in datasets:
             tmp_images = []

@@ -11,7 +11,8 @@ def index(request, conn=None, **kwargs):
 
 @login_required()
 def list_datasets(request, conn=None, **kwargs):
-    return JsonResponse(App(conn).listDatasets(), safe=False)
+    datasetId = request.GET.get("datasetId", None)
+    return JsonResponse(App(conn).listDatasets(datasetId=datasetId), safe=False)
 
 @login_required()
 def thumbnail(request, imageid, conn=None, **kwargs):
